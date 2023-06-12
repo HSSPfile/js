@@ -1,15 +1,12 @@
 {
     "name": "hssp",
     "version": "3.0.0",
-    "description": "HSSP editor & parser",
+    "description": "Create, edit and read HSSP files in pure JavaScript",
     "main": "main.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"
     },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/Le0X8/HSSP.git"
-    },
+    "repository": "HSSPfile/js",
     "keywords": [
         "HSSP",
         "HugeSizeSupportingPackage",
@@ -17,12 +14,12 @@
         "Package",
         "64RiB"
     ],
-    "author": "LeoX DEV",
+    "author": "HSSP",
     "license": "MIT",
     "bugs": {
-        "url": "https://github.com/Le0X8/HSSP/issues"
+        "url": "https://github.com/HSSPfile/js/issues"
     },
-    "homepage": "https://github.com/Le0X8/HSSP#readme",
+    "homepage": "https://hssp.leox.dev/",
     "dependencies": {
         "lzma": "^2.3.2",
         "murmurhash-js": "^1.0.0",
