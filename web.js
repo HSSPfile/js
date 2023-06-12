@@ -61,8 +61,8 @@ const HSSP = {
 
                 permissions: options.permissions ?? 764, // rwxrw-r--
 
-                owner: options.owner ?? os.userInfo().username,
-                group: options.group ?? os.userInfo().gid.toString(36),
+                owner: options.owner ?? window.location.hostname,
+                group: options.group ?? navigator.userAgent,
                 created: options.created ?? new Date(),
                 changed: options.changed ?? new Date(),
                 opened: options.opened ?? new Date(),
