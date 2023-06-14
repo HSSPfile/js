@@ -687,6 +687,7 @@ const HSSP = {
                         outDV.setBigUint64(offs, BigInt(file[1].byteLength), true); // file size (up to 16 EiB!!!)
                         outDV.setUint16(offs + 8, (new TextEncoder().encode(file[0])).byteLength, true); // name size
                         out.set(new TextEncoder().encode(file[0]), offs + 10); // name
+                        console.log(file[1]);
                         out.set(file[1], offs + 10 + (new TextEncoder().encode(file[0])).byteLength); // file
                         offs += 10 + (new TextEncoder().encode(file[0])).byteLength + (new TextEncoder().encode(file[0])).byteLength + file[1].byteLength;
                     });
