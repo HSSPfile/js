@@ -545,8 +545,8 @@ const HSSP = {
                         file[2].group = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 2, offs - (usedTDU8 ? 0 : 128) + 2 + innerOffs));
                         offs += innerOffs + 2;
 
-                        innerOffs = dataDV.getUint16(offs, true);
-                        file[2].webLink = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 2, offs - (usedTDU8 ? 0 : 128) + 2 + innerOffs));
+                        innerOffs = dataDV.getUint32(offs, true);
+                        file[2].webLink = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 4, offs - (usedTDU8 ? 0 : 128) + 4 + innerOffs));
                         offs += innerOffs + 4;
 
                         file[2].created = new Date((() => {
@@ -857,7 +857,7 @@ const HSSP = {
                         offs += innerOffs + 2;
 
                         innerOffs = (new TextEncoder().encode(file[2].webLink)).byteLength;
-                        outDV.setUint16(offs, innerOffs, true);
+                        outDV.setUint32(offs, innerOffs, true);
                         out.set(new TextEncoder().encode(file[2].webLink), offs + 2);
                         offs += innerOffs + 2;
 
