@@ -861,12 +861,15 @@ const HSSP = {
                         out.set(new TextEncoder().encode(file[2].webLink), offs + 2);
                         offs += innerOffs + 2;
 
-                        out.writeUintLE(file[2].created.getTime(), offs, 6);
-                        out.writeUintLE(file[2].changed.getTime(), offs + 6, 6);
-                        out.writeUintLE(file[2].opened.getTime(), offs + 12, 6);
+                        var u48c = new Uint8Array(8);
+                        var u48cDV = new DataView(u48c.buffer);
+                        u48cDV.setBigUint64(0, BigInt(file[2].created.getTime()), true);
+                        out.set(u48c.slice(0, 6), offs);
+                        u48cDV.setBigUint64(0, BigInt(file[2].changed.getTime()), true);
+                        out.set(u48c.slice(0, 6), offs + 6);
+                        u48cDV.setBigUint64(0, BigInt(file[2].opened.getTime()), true);
+                        out.set(u48c.slice(0, 6), offs + 12);
                         offs += 18;
-
-                        // TODO --- TODO --- TODO
 
                         parseInt(file[2].permissions, 8).toString(2).split('').map(x => parseInt(x)).forEach((bit, addr) => {
                             out[offs + Math.floor(addr / 8)] |= (bit << addr);
@@ -883,7 +886,7 @@ const HSSP = {
 
                     // files
                     this.#files.forEach(file => {
-                        file[1].copy(out, offs); // file
+                        out.set(file[1], offs); // file
                         offs += file[1].byteLength;
                     });
 
