@@ -5,7 +5,13 @@ const compAlgos = { //> https://hssp.leox.dev/docs/compression/codes
 
 const HSSP = {
     _internal: {
-        typedArrayToBuffer: array => array.buffer.slice(array.byteOffset, array.byteLength + array.byteOffset)
+        typedArrayToBuffer: array => array.buffer.slice(array.byteOffset, array.byteLength + array.byteOffset),
+        mergeUint8Arrays: (array1, array2) => {
+            var rt = new Uint8Array(array1.length, array2.length);
+            rt.set(array1, 0);
+            rt.set(array2, array1.length);
+            return rt;
+        }
     },
 
     Editor: class {
@@ -889,8 +895,28 @@ const HSSP = {
                         out.set(file[1], offs); // file
                         offs += file[1].byteLength;
                     });
+                    var outBuf = out;
+                    var pack = outBuf.subarray(128, size);
 
-                    var pack = out.subarray(128, size);
+                    switch (this.#compAlgo) {
+                        case 'DFLT':
+                            outBuf = mergeUint8Arrays(outBuf.subarray(0, 128), pako.deflate(pack, { level: this.#compLvl }));
+                            break;
+
+                        case 'LZMA':
+                            outBuf = mergeUint8Arrays(outBuf.subarray(0, 128), lzma.compress(pack, this.#compLvl));
+                            break;
+
+                        case 'NONE':
+                            break;
+
+                        default:
+                            throw new Error('COMPRESSION_NOT_SUPPORTED');
+                    };
+
+                    size = outBuf.byteLength;
+                    pack = outBuf.subarray(128, size);
+                    var outBufDV = new DataView(outBuf);
                     if (this.#pwd !== null) {
                         const iv = CryptoJS.lib.WordArray.random(8);
                         const encrypted = CryptoJS.AES.encrypt(pack, CryptoJS.SHA256(this.#pwd), {
@@ -898,17 +924,17 @@ const HSSP = {
                             padding: CryptoJS.pad.Pkcs7,
                             mode: CryptoJS.mode.CBC
                         }).toUint8Array();
-                        out.set(iv.toUint8Array(), 44);
-                        out.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
+                        outBuf.set(iv.toUint8Array(), 44);
+                        outBuf.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
                         const eOut = new Uint8Array(128 + encrypted.byteLength);
                         const eOutDV = new DataView(eOut.buffer);
                         eOut.set(out.subarray(0, 128), 0);
                         eOut.set(encrypted, 128);
-                        eOutDV.setUint32(4, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
+                        eOutDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
                         return eOut;
                     };
-                    outDV.setUint32(4, murmurhash3_32_gc(new TextDecoder().decode(pack), 0x31082007), true); // checksum
-                    return out.buffer;
+                    outBufDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(pack), 0x31082007), true); // checksum
+                    return outBuf.buffer;
             };
         }
     },
