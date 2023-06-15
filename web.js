@@ -915,10 +915,11 @@ const HSSP = {
                     };
 
                     size = outBuf.byteLength;
-                    pack = outBuf.subarray(128, size);
+                    pack = outBuf.slice(128, size);
                     var outBufDV = new DataView(outBuf.buffer);
                     if (this.#pwd !== null) {
                         const iv = CryptoJS.lib.WordArray.random(8);
+                        console.log(pack);
                         const encrypted = CryptoJS.AES.encrypt(pack, CryptoJS.SHA256(this.#pwd), {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
@@ -928,7 +929,7 @@ const HSSP = {
                         outBuf.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
                         const eOut = new Uint8Array(128 + encrypted.byteLength);
                         const eOutDV = new DataView(eOut.buffer);
-                        eOut.set(out.subarray(0, 128), 0);
+                        eOut.set(outBuf.slice(0, 128), 0);
                         eOut.set(encrypted, 128);
                         eOutDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
                         return eOut;
