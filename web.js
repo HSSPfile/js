@@ -7,7 +7,7 @@ const HSSP = {
     _internal: {
         typedArrayToBuffer: array => array.buffer.slice(array.byteOffset, array.byteLength + array.byteOffset),
         mergeUint8Arrays: (array1, array2) => {
-            var rt = new Uint8Array(array1.length, array2.length);
+            var rt = new Uint8Array(array1.length + array2.length);
             rt.set(array1, 0);
             rt.set(array2, array1.length);
             return rt;
@@ -904,7 +904,7 @@ const HSSP = {
                             break;
 
                         case 'LZMA':
-                            outBuf = HSSP._internal.mergeUint8Arrays(outBuf.subarray(0, 128), lzma.compress(pack, this.#compLvl));
+                            outBuf = HSSP._internal.mergeUint8Arrays(outBuf.subarray(0, 128), LZMA.compress(pack, this.#compLvl));
                             break;
 
                         case 'NONE':
