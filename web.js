@@ -892,7 +892,9 @@ const HSSP = {
 
                     // files
                     this.#files.forEach(file => {
+                        console.log(file[1]);
                         out.set(file[1], offs); // file
+                        console.log(out);
                         offs += file[1].byteLength;
                     });
                     var outBuf = out;
@@ -900,11 +902,11 @@ const HSSP = {
 
                     switch (this.#compAlgo) {
                         case 'DFLT':
-                            outBuf = mergeUint8Arrays(outBuf.subarray(0, 128), pako.deflate(pack, { level: this.#compLvl }));
+                            outBuf = HSSP._internal.mergeUint8Arrays(outBuf.subarray(0, 128), pako.deflate(pack, { level: this.#compLvl }));
                             break;
 
                         case 'LZMA':
-                            outBuf = mergeUint8Arrays(outBuf.subarray(0, 128), lzma.compress(pack, this.#compLvl));
+                            outBuf = HSSP._internal.mergeUint8Arrays(outBuf.subarray(0, 128), lzma.compress(pack, this.#compLvl));
                             break;
 
                         case 'NONE':
