@@ -892,9 +892,7 @@ const HSSP = {
 
                     // files
                     this.#files.forEach(file => {
-                        console.log(file[1]);
-                        out.set(file[1], offs); // file
-                        console.log(out);
+                        out.set(new Uint8Array(file[1].buffer), offs); // file
                         offs += file[1].byteLength;
                     });
                     var outBuf = out;
