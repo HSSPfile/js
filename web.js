@@ -916,7 +916,7 @@ const HSSP = {
 
                     size = outBuf.byteLength;
                     pack = outBuf.subarray(128, size);
-                    var outBufDV = new DataView(outBuf);
+                    var outBufDV = new DataView(outBuf.buffer);
                     if (this.#pwd !== null) {
                         const iv = CryptoJS.lib.WordArray.random(8);
                         const encrypted = CryptoJS.AES.encrypt(pack, CryptoJS.SHA256(this.#pwd), {
