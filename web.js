@@ -732,8 +732,8 @@ const HSSP = {
                     this.#files.forEach(file => {
                         outDV.setBigUint64(offs, BigInt(file[1].byteLength), true); // file size (up to 16 EiB!!!)
                         outDV.setUint16(offs + 8, (new TextEncoder().encode(file[0])).byteLength, true); // name size
-                        out.set(offs + 10, new TextEncoder().encode(file[0])); // name
-                        out.set(offs + 10 + (new TextEncoder().encode(file[0])).byteLength, file[1]); // file
+                        out.set(new TextEncoder().encode(file[0]), offs + 10); // name
+                        out.set(new Uint8Array(file[1].buffer), offs + 10 + (new TextEncoder().encode(file[0])).byteLength); // file
                         offs += 10 + (new TextEncoder().encode(file[0])).byteLength + (new TextEncoder().encode(file[0])).byteLength + file[1].byteLength;
                     });
                     var pack = out.subarray(64, size);
@@ -778,8 +778,8 @@ const HSSP = {
                     this.#files.forEach(file => {
                         outDV.setBigUint64(offs, BigInt(file[1].byteLength), true); // file size (up to 16 EiB!!!)
                         outDV.setUint16(offs + 8, (new TextEncoder().encode(file[0])).byteLength, true); // name size
-                        out.set(offs + 10, new TextEncoder().encode(file[0])); // name
-                        out.set(offs + 10 + (new TextEncoder().encode(file[0])).byteLength, file[1]); // file
+                        out.set(new TextEncoder().encode(file[0]), offs + 10); // name
+                        out.set(new Uint8Array(file[1].buffer), offs + 10 + (new TextEncoder().encode(file[0])).byteLength); // file
                         offs += 10 + (new TextEncoder().encode(file[0])).byteLength + (new TextEncoder().encode(file[0])).byteLength + file[1].byteLength;
                     });
                     var pack = out.subarray(128, size);
