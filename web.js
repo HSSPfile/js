@@ -697,10 +697,8 @@ const HSSP = {
                         offs += 10 + (new TextEncoder().encode(file[0])).byteLength + (new TextEncoder().encode(file[0])).byteLength + file[1].byteLength;
                     });
                     var pack = out.subarray(64, size);
-                    console.log(CryptoJS.SHA256(this.#pwd));
-                    console.log(pack);
                     if (this.#pwd !== null) {
-                        const iv = CryptoJS.lib.WordArray.random(8);
+                        const iv = CryptoJS.lib.WordArray.random(16);
                         const encrypted = CryptoJS.AES.encrypt(pack, CryptoJS.SHA256(this.#pwd), {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
