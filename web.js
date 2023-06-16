@@ -972,7 +972,7 @@ const HSSP = {
             document.body.appendChild(script);
         }),
         urls: {
-            'crypto-js': 'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.js',
+            'crypto-js': 'https://cdn.jsdelivr.net/npm/crypto-js/crypto-js.min.js',
             'murmurhash-js': 'https://cdn.jsdelivr.net/gh/garycourt/murmurhash-js/murmurhash3_gc.min.js',
             'lzma-js': 'https://cdn.jsdelivr.net/npm/lzma/src/lzma_worker-min.js',
             'pako': 'https://cdn.jsdelivr.net/npm/pako/dist/pako.min.js'
