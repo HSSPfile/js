@@ -3,6 +3,8 @@ const compAlgos = { //> https://hssp.leox.dev/docs/compression/codes
     'LZMA': 'LZMA'
 };
 
+var global = {};
+
 const HSSP = {
     _internal: {
         typedArrayToBuffer: array => array.buffer.slice(array.byteOffset, array.byteLength + array.byteOffset),
@@ -703,7 +705,8 @@ const HSSP = {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
                             mode: CryptoJS.mode.CBC
-                        }).toUint8Array();
+                        })//.toUint8Array();
+                        global.enc = encrypted;
                         out.set(iv.toUint8Array(), 44);
                         out.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
                         const eOut = new Uint8Array(64 + encrypted.byteLength);
