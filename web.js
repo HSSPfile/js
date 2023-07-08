@@ -916,7 +916,7 @@ const HSSP = {
                     var outBufDV = new DataView(outBuf.buffer);
                     if (this.#pwd !== null) {
                         const iv = CryptoJS.lib.WordArray.random(16);
-                        console.log(pack);
+                        console.log({pack, iv});
                         const encrypted = CryptoJS.AES.encrypt(pack, CryptoJS.SHA256(this.#pwd), {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
