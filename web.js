@@ -744,6 +744,7 @@ const HSSP = {
                     var pack = out.subarray(64, size);
                     if (this.#pwd !== null) {
                         const iv = CryptoJS.lib.WordArray.random(8);
+                        console.log(pack);
                         const encrypted = CryptoJS.AES.encrypt(pack, CryptoJS.SHA256(this.#pwd), {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
