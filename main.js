@@ -271,6 +271,7 @@ class Editor { // Can hold massive amounts of data in a single file
             const fileCount = buffer.readUint32LE(8);
             if (!buffer.subarray(12, 60).equals(Buffer.alloc(48).fill(0))) { // check if file is encrypted
                 if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) throw new Error('INVALID_PASSWORD');
+                const iv = buffer.subarray(44, 60);
                 const encrypted = buffer.subarray(64, buffer.byteLength);
                 const decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
                 const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
