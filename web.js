@@ -744,7 +744,7 @@ const HSSP = {
                     var pack = out.subarray(64, size);
                     if (this.#pwd !== null) {
                         const iv = CryptoJS.lib.WordArray.random(16);
-                        const encrypted = CryptoJS.AES.encrypt(pack, CryptoJS.SHA256(this.#pwd), {
+                        const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
                             mode: CryptoJS.mode.CBC
@@ -789,7 +789,7 @@ const HSSP = {
                     var pack = out.subarray(128, size);
                     if (this.#pwd !== null) {
                         const iv = CryptoJS.lib.WordArray.random(16);
-                        const encrypted = CryptoJS.AES.encrypt(pack, CryptoJS.SHA256(this.#pwd), {
+                        const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
                             mode: CryptoJS.mode.CBC
@@ -916,8 +916,7 @@ const HSSP = {
                     var outBufDV = new DataView(outBuf.buffer);
                     if (this.#pwd !== null) {
                         const iv = CryptoJS.lib.WordArray.random(16);
-                        console.log({pack, iv});
-                        const encrypted = CryptoJS.AES.encrypt(pack, CryptoJS.SHA256(this.#pwd), {
+                        const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
                             mode: CryptoJS.mode.CBC
