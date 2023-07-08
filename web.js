@@ -715,7 +715,6 @@ const HSSP = {
                     };
                     outDV.setUint32(4, murmurhash3_32_gc(new TextDecoder().decode(pack), 0x31082007), true); // checksum
                     return out.buffer;
-
                 case 2:
                     var size = 64; // Bytes
                     this.#files.forEach(file => {
@@ -761,7 +760,6 @@ const HSSP = {
                     };
                     outDV.setUint32(4, murmurhash3_32_gc(new TextDecoder().decode(pack), 0x31082007), true); // checksum
                     return out.buffer;
-
                 case 3:
                     var size = 128; // Bytes
                     this.#files.forEach(file => {
@@ -807,7 +805,6 @@ const HSSP = {
                     };
                     outDV.setUint32(4, murmurhash3_32_gc(new TextDecoder().decode(pack), 0x31082007), true); // checksum
                     return out.buffer;
-
                 case 4:
                     var size = 128; // Bytes
                     this.#files.forEach(file => size +=
