@@ -3,8 +3,6 @@ const compAlgos = { //> https://hssp.leox.dev/docs/compression/codes
     'LZMA': 'LZMA'
 };
 
-var global = {};
-
 const HSSP = {
     _internal: {
         typedArrayToBuffer: array => array.buffer.slice(array.byteOffset, array.byteLength + array.byteOffset),
