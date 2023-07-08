@@ -861,8 +861,8 @@ const HSSP = {
 
                         innerOffs = (new TextEncoder().encode(file[2].webLink)).byteLength;
                         outDV.setUint32(offs, innerOffs, true);
-                        out.set(new TextEncoder().encode(file[2].webLink), offs + 2);
-                        offs += innerOffs + 2;
+                        out.set(new TextEncoder().encode(file[2].webLink), offs + 4);
+                        offs += innerOffs + 4;
 
                         var u48c = new Uint8Array(8);
                         var u48cDV = new DataView(u48c.buffer);
