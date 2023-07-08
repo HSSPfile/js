@@ -748,7 +748,7 @@ const HSSP = {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
                             mode: CryptoJS.mode.CBC
-                        }).toUint8Array();
+                        }).ciphertext.toUint8Array();
                         out.set(iv.toUint8Array(), 44);
                         out.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
                         const eOut = new Uint8Array(64 + encrypted.byteLength);
@@ -793,7 +793,7 @@ const HSSP = {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
                             mode: CryptoJS.mode.CBC
-                        }).toUint8Array();
+                        }).ciphertext.toUint8Array();
                         out.set(iv.toUint8Array(), 44);
                         out.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
                         const eOut = new Uint8Array(128 + encrypted.byteLength);
@@ -921,7 +921,7 @@ const HSSP = {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
                             mode: CryptoJS.mode.CBC
-                        }).toUint8Array();
+                        }).ciphertext.toUint8Array();
                         outBuf.set(iv.toUint8Array(), 44);
                         outBuf.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
                         const eOut = new Uint8Array(128 + encrypted.byteLength);
