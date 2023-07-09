@@ -895,6 +895,7 @@ class Editor { // Can hold massive amounts of data in a single file
     }
 };
 module.exports = {
+    release: '3.0.0',
     Editor,
 
     /**

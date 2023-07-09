@@ -4,6 +4,8 @@ const compAlgos = { //> https://hssp.leox.dev/docs/compression/codes
 };
 
 const HSSP = {
+    release: '3.0.0',
+
     _internal: {
         typedArrayToBuffer: array => array.buffer.slice(array.byteOffset, array.byteLength + array.byteOffset),
         mergeUint8Arrays: (array1, array2) => {
