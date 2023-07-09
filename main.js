@@ -964,6 +964,7 @@ module.exports = {
 
             metadata.compression = false;
 
+            metadata.password.correct = null;
             if (!buffer.subarray(12, 60).equals(Buffer.alloc(48).fill(0))) { // check if file is encrypted
                 metadata.password.correct = false;
                 metadata.password.given.hash = crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64');
@@ -1233,7 +1234,7 @@ module.exports = {
                 return metadata;
 
             default:
-                if (metadata == 0) metadata.version = buffer.readUint32LE(64) > 3 ? buffer.readUint32LE(64) : null;
+                if (metadata == 0) metadata.version = buffer.readUint32LE(4) > 3 ? buffer.readUint32LE(4) : null;
         };
 
         return metadata;

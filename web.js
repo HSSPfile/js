@@ -976,5 +976,490 @@ const HSSP = {
             'pako': 'https://cdn.jsdelivr.net/npm/pako/dist/pako.min.js'
         }
     },
-    init: () => Promise.all([HSSP.dependency.load('crypto-js'), HSSP.dependency.load('murmurhash-js'), HSSP.dependency.load('lzma-js'), HSSP.dependency.load('pako')])
+    init: () => Promise.all([HSSP.dependency.load('crypto-js'), HSSP.dependency.load('murmurhash-js'), HSSP.dependency.load('lzma-js'), HSSP.dependency.load('pako')]),
+    
+    /**
+     * Returns the metadata of the {buffer}
+     * @param {ArrayBuffer} buffer The HSSP buffer to fetch metadata files from
+     * @param {string} [password] The password to decrypt the file with (if encrypted)
+     * @returns {{hash: {valid: boolean, given: number, calculated: number}, password: {correct: boolean | null, given: {clear: string, hash: string}, hash: string}, compression: string | false, split: {totalFileCount: number, id: number, checksums: {previous: number, next: number}, splitFileOffset: number}, files: object}} The metadata of the buffer
+     * 
+     * @since 3.0.0/v4
+     * 
+     * @throws {Error} "VERSION_NOT_SUPPORTED" if the version is not supported
+     * @throws {Error} "INVALID_CHECKSUM" if the checksum of the HSSP buffer is invalid
+     * @throws {Error} "COMPRESSION_NOT_SUPPORTED" if the compression algorithm is not supported
+     * @throws {Error} "MISSING_DEPENDENCIES" if the dependencies are missing, make sure they are installed with `await HSSP.init()`
+     */
+    metadata: (buffer, password) => {
+        if (typeof CryptoJS != 'object' && typeof murmurhash3_32_gc != 'function') throw new Error('MISSING_DEPENDENCIES');
+        if (buffer.buffer instanceof ArrayBuffer) {
+            buffer = buffer.buffer;
+        };
+        const bufferU8 = new Uint8Array(buffer);
+        const bufferDV = new DataView(buffer);
+
+        var metadata = {
+            version: 0,
+            generator: '',
+            comment: '',
+            hash: {
+                valid: false,
+                given: 0,
+                calculated: 0
+            },
+            password: {
+                correct: false,
+                given: {
+                    clear: '',
+                    hash: ''
+                },
+                hash: ''
+            },
+            compression: '',
+            split: {
+                totalFileCount: 0,
+                id: 0,
+                checksums: {
+                    previous: 0,
+                    next: 0
+                },
+                splitFileOffset: 0
+            },
+            files: {}
+        };
+
+        if (new TextDecoder().decode(bufferU8.subarray(0, 4)) == 'SFA\x00') { // v1: 0-4 SFA\x00, Uses 64B header
+            metadata.version = 1;
+            const inp = bufferU8.subarray(64, bufferU8.length);
+            metadata.hash.valid = true;
+            const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+            const inpDV = new DataView(inp.buffer);
+            metadata.hash.given = inpDV.getUint32(4, true);
+            metadata.hash.calculated = hash;
+            if (inpDV.getUint32(4, true) !== hash) metadata.hash.valid = false;
+            const fileCount = bufferDV.getUint32(8, true);
+            metadata.compression = false;
+            metadata.password.correct = null;
+            var tempDataU8;
+            if ((() => {
+                const start = 12;
+                const end = 60;
+
+                var rt = 0;
+
+                for (var i = start; i < end; i++) {
+                    rt += bufferDV.getUint8(i);
+                };
+
+                return rt !== 0;
+            })()) {
+                metadata.password.correct = false;
+                metadata.password.given.hash = CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex);
+                metadata.password.given.clear = password;
+                metadata.password.hash = Array.from(bufferU8.subarray(12, 44)).map(e => e.toString(16).length < 2 ? '0' + e.toString(16) : e.toString(16)).join('');
+                if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) return metadata;
+                metadata.password.correct = true;
+                const iv = bufferU8.subarray(44, 60);
+                const encrypted = bufferU8.subarray(64, buffer.byteLength);
+                const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                    ciphertext: CryptoJS.lib.WordArray.create(encrypted),
+                    salt: CryptoJS.lib.WordArray.create(iv)
+                }), CryptoJS.SHA256(password), {
+                    iv: CryptoJS.lib.WordArray.create(iv),
+                    padding: CryptoJS.pad.Pkcs7,
+                    mode: CryptoJS.mode.CBC
+                });
+
+                tempDataU8 = decrypted.toUint8Array();
+            };
+
+            var utdu8 = true;
+            const dataU8 = (() => {
+                if ((tempDataU8 ?? true) === true) {
+                    utdu8 = false;
+                    return inp;
+                } else return tempDataU8;
+            })();
+            const data = dataU8.buffer;
+            const dataDV = new DataView(data);
+
+            const usedTDU8 = utdu8;
+            var offs = usedTDU8 ? 0 : 64;
+            var index = bufferDV.getUint32(60, true);
+            for (var i = 0; i < fileCount; i++) {
+                const nameLen = dataDV.getUint16(offs + 8, true);
+                const name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 64) + 10, offs - (usedTDU8 ? 0 : 64) + 10 + nameLen));
+                const fileSize = dataDV.getBigUint64(offs, true);
+                metadata.files[name] = {
+                    size: fileSize,
+                    owner: '',
+                    group: '',
+                    webLink: '',
+                    created: new Date(0),
+                    changed: new Date(0),
+                    opened: new Date(0),
+                    permissions: 764,
+                    isFolder: name.startsWith('//'),
+                    hidden: false,
+                    system: false,
+                    enableBackup: true,
+                    forceBackup: false,
+                    readOnly: false,
+                    mainFile: i == index,
+                };
+                offs += 10 + nameLen * 2 + Number(fileSize);
+            };
+            metadata.split.totalFileCount = fileCount;
+            return metadata;
+        };
+
+        if (murmurhash3_32_gc(new TextDecoder().decode(bufferU8.subarray(64, bufferU8.length)), 0x31082007) == bufferDV.getUint32(4, true)) { // v2: Uses 64B header
+            metadata.version = 2;
+            const inp = bufferU8.subarray(64, bufferU8.length);
+            metadata.hash.valid = true;
+            const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+            const inpDV = new DataView(inp.buffer);
+            metadata.hash.given = inpDV.getUint32(4, true);
+            metadata.hash.calculated = hash;
+            if (inpDV.getUint32(4, true) !== hash) metadata.hash.valid = false;
+            const fileCount = bufferDV.getUint32(8, true);
+            metadata.compression = false;
+            metadata.password.correct = null;
+            var tempDataU8;
+            if ((() => {
+                const start = 12;
+                const end = 60;
+
+                var rt = 0;
+
+                for (var i = start; i < end; i++) {
+                    rt += bufferDV.getUint8(i);
+                };
+
+                return rt !== 0;
+            })()) {
+                metadata.password.correct = false;
+                metadata.password.given.hash = CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex);
+                metadata.password.given.clear = password;
+                metadata.password.hash = Array.from(bufferU8.subarray(12, 44)).map(e => e.toString(16).length < 2 ? '0' + e.toString(16) : e.toString(16)).join('');
+                if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) return metadata;
+                metadata.password.correct = true;
+                const iv = bufferU8.subarray(44, 60);
+                const encrypted = bufferU8.subarray(64, buffer.byteLength);
+                const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                    ciphertext: CryptoJS.lib.WordArray.create(encrypted),
+                    salt: CryptoJS.lib.WordArray.create(iv)
+                }), CryptoJS.SHA256(password), {
+                    iv: CryptoJS.lib.WordArray.create(iv),
+                    padding: CryptoJS.pad.Pkcs7,
+                    mode: CryptoJS.mode.CBC
+                });
+
+                tempDataU8 = decrypted.toUint8Array();
+            };
+
+            var utdu8 = true;
+            const dataU8 = (() => {
+                if ((tempDataU8 ?? true) === true) {
+                    utdu8 = false;
+                    return inp;
+                } else return tempDataU8;
+            })();
+            const data = dataU8.buffer;
+            const dataDV = new DataView(data);
+
+            const usedTDU8 = utdu8;
+            var offs = usedTDU8 ? 0 : 64;
+            var index = bufferDV.getUint32(60, true);
+            for (var i = 0; i < fileCount; i++) {
+                const nameLen = dataDV.getUint16(offs + 8, true);
+                const name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 64) + 10, offs - (usedTDU8 ? 0 : 64) + 10 + nameLen));
+                const fileSize = dataDV.getBigUint64(offs, true);
+                metadata.files[name] = {
+                    size: fileSize,
+                    owner: '',
+                    group: '',
+                    webLink: '',
+                    created: new Date(0),
+                    changed: new Date(0),
+                    opened: new Date(0),
+                    permissions: 764,
+                    isFolder: name.startsWith('//'),
+                    hidden: false,
+                    system: false,
+                    enableBackup: true,
+                    forceBackup: false,
+                    readOnly: false,
+                    mainFile: i == index,
+                };
+                offs += 10 + nameLen * 2 + Number(fileSize);
+            };
+            metadata.split.totalFileCount = fileCount;
+            return metadata;
+        };
+
+        if ((() => {
+            const start = 64;
+            const end = 128;
+
+            var rt = 0;
+
+            for (var i = start; i < end; i++) {
+                rt += bufferDV.getUint8(i);
+            };
+
+            return rt === 0;
+        })()) { // v3: Uses 128B header
+            metadata.version = 3;
+            const inp = bufferU8.subarray(128, bufferU8.length);
+            metadata.hash.valid = true;
+            const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+            const inpDV = new DataView(inp.buffer);
+            metadata.hash.given = inpDV.getUint32(4, true);
+            metadata.hash.calculated = hash;
+            if (inpDV.getUint32(4, true) !== hash) metadata.hash.valid = false;
+            const fileCount = bufferDV.getUint32(8, true);
+            metadata.compression = false;
+            metadata.password.correct = null;
+            var tempDataU8;
+            if ((() => {
+                const start = 12;
+                const end = 60;
+
+                var rt = 0;
+
+                for (var i = start; i < end; i++) {
+                    rt += bufferDV.getUint8(i);
+                };
+
+                return rt !== 0;
+            })()) {
+                metadata.password.correct = false;
+                metadata.password.given.hash = CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex);
+                metadata.password.given.clear = password;
+                metadata.password.hash = Array.from(bufferU8.subarray(12, 44)).map(e => e.toString(16).length < 2 ? '0' + e.toString(16) : e.toString(16)).join('');
+                if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) return metadata;
+                metadata.password.correct = true;
+                const iv = bufferU8.subarray(44, 60);
+                const encrypted = bufferU8.subarray(128, buffer.byteLength);
+                const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                    ciphertext: CryptoJS.lib.WordArray.create(encrypted),
+                    salt: CryptoJS.lib.WordArray.create(iv)
+                }), CryptoJS.SHA256(password), {
+                    iv: CryptoJS.lib.WordArray.create(iv),
+                    padding: CryptoJS.pad.Pkcs7,
+                    mode: CryptoJS.mode.CBC
+                });
+
+                tempDataU8 = decrypted.toUint8Array();
+            };
+
+            var utdu8 = true;
+            const dataU8 = (() => {
+                if ((tempDataU8 ?? true) === true) {
+                    utdu8 = false;
+                    return inp;
+                } else return tempDataU8;
+            })();
+            const data = dataU8.buffer;
+            const dataDV = new DataView(data);
+
+            const usedTDU8 = utdu8;
+            var offs = usedTDU8 ? 0 : 128;
+            var index = bufferDV.getUint32(60, true);
+            for (var i = 0; i < fileCount; i++) {
+                const nameLen = dataDV.getUint16(offs + 8, true);
+                const name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 10, offs - (usedTDU8 ? 0 : 128) + 10 + nameLen));
+                const fileSize = dataDV.getBigUint64(offs, true);
+                metadata.files[name] = {
+                    size: fileSize,
+                    owner: '',
+                    group: '',
+                    webLink: '',
+                    created: new Date(0),
+                    changed: new Date(0),
+                    opened: new Date(0),
+                    permissions: 764,
+                    isFolder: name.startsWith('//'),
+                    hidden: false,
+                    system: false,
+                    enableBackup: true,
+                    forceBackup: false,
+                    readOnly: false,
+                    mainFile: i == index,
+                };
+                offs += 10 + nameLen * 2 + Number(fileSize);
+            };
+            metadata.split.totalFileCount = fileCount;
+            return metadata;
+        };
+
+        switch (bufferDV.getUint8(4)) {
+            case 4: // v4: Uses 128B header completely + indexing
+                metadata.version = 4;
+                const inp = bufferU8.subarray(128, bufferU8.length);
+                metadata.hash.valid = true;
+                const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+                metadata.hash.given = bufferDV.getUint32(64, true);
+                metadata.hash.calculated = hash;
+                if (bufferDV.getUint32(64, true) !== hash) metadata.hash.valid = false;
+                const fileCount = bufferDV.getUint32(8, true);
+                switch (new TextDecoder().decode(bufferU8.subarray(60, 64))) {
+                    case 'DFLT':
+                        metadata.compression = 'DEFLATE';
+                        break;
+
+                    case 'LZMA':
+                        metadata.compression = 'LZMA';
+                        break;
+
+                    case 'NONE':
+                        metadata.compression = false;
+                        break;
+
+                    default:
+                        metadata.compression = null;
+                        break;
+                };
+                metadata.password.correct = null;
+                var tempDataU8;
+                if ((() => {
+                    const start = 12;
+                    const end = 60;
+
+                    var rt = 0;
+
+                    for (var i = start; i < end; i++) {
+                        rt += bufferDV.getUint8(i);
+                    };
+
+                    return rt !== 0;
+                })()) {
+                    metadata.password.correct = false;
+                    metadata.password.given.hash = CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex);
+                    metadata.password.given.clear = password;
+                    metadata.password.hash = Array.from(bufferU8.subarray(12, 44)).map(e => e.toString(16).length < 2 ? '0' + e.toString(16) : e.toString(16)).join('');
+                    if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) return metadata;
+                    metadata.password.correct = true;
+                    const iv = bufferU8.subarray(44, 60);
+                    const encrypted = bufferU8.subarray(128, buffer.byteLength);
+                    const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                        ciphertext: CryptoJS.lib.WordArray.create(encrypted),
+                        salt: CryptoJS.lib.WordArray.create(iv)
+                    }), CryptoJS.SHA256(password), {
+                        iv: CryptoJS.lib.WordArray.create(iv),
+                        padding: CryptoJS.pad.Pkcs7,
+                        mode: CryptoJS.mode.CBC
+                    });
+
+                    tempDataU8 = decrypted.toUint8Array();
+                };
+
+                switch (new TextDecoder().decode(bufferU8.subarray(60, 64))) {
+                    case 'DFLT':
+                        tempDataU8 = pako.inflate(tempDataU8 ?? inp);
+                        break;
+
+                    case 'LZMA':
+                        var decompressed = LZMA.decompress(tempDataU8 ?? inp);
+                        tempDataU8 = (typeof decompressed == 'string') ? new TextEncoder().encode(decompressed) : Uint8Array.from(decompressed);
+                        break;
+                };
+
+                var utdu8 = true;
+                const dataU8 = (() => {
+                    if ((tempDataU8 ?? true) === true) {
+                        utdu8 = false;
+                        return inp;
+                    } else return tempDataU8;
+                })();
+                const data = dataU8.buffer;
+                const dataDV = new DataView(data);
+
+                metadata.split.totalFileCount = Number(bufferDV.getBigUint64(68, true));
+                metadata.split.id = bufferDV.getUint32(92, true);
+                metadata.split.checksums.previous = bufferDV.getUint32(84, true);
+                metadata.split.checksums.next = bufferDV.getUint32(88, true);
+                metadata.split.splitFileOffset = Number(bufferDV.getBigUint64(76, true));
+
+                metadata.comment = new TextDecoder().decode(bufferU8.subarray(96, 112)).split('\x00', '');
+
+                metadata.generator = new TextDecoder().decode(bufferU8.subarray(112, 128)).split('\x00', '');
+
+                const usedTDU8 = utdu8;
+                var offs = usedTDU8 ? 0 : 128;
+
+                for (var i = 0; i < fileCount; i++) {
+                    var file = [];
+                    file[2] = {};
+
+                    var innerOffs = 0;
+                    file[2].size = dataDV.getBigUint64(offs, true);
+                    offs += innerOffs + 8;
+
+                    var innerOffs = dataDV.getUint16(offs, true);
+                    file[0] = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 2, offs - (usedTDU8 ? 0 : 128) + 2 + innerOffs));
+                    offs += innerOffs + 2;
+
+                    innerOffs = dataDV.getUint16(offs, true);
+                    file[2].owner = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 2, offs - (usedTDU8 ? 0 : 128) + 2 + innerOffs));
+                    offs += innerOffs + 2;
+
+                    innerOffs = dataDV.getUint16(offs, true);
+                    file[2].group = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 2, offs - (usedTDU8 ? 0 : 128) + 2 + innerOffs));
+                    offs += innerOffs + 2;
+
+                    innerOffs = dataDV.getUint32(offs, true);
+                    file[2].webLink = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 4, offs - (usedTDU8 ? 0 : 128) + 4 + innerOffs));
+                    offs += innerOffs + 4;
+
+                    file[2].created = new Date((() => {
+                        var rt = 0;
+                        for (var i = 0; i < 6; i++) {
+                            rt += dataDV.getUint8(offs + i) * Math.pow(256, i);
+                        };
+                        return rt;
+                    })());
+                    offs += 6;
+                    file[2].changed = new Date((() => {
+                        var rt = 0;
+                        for (var i = 0; i < 6; i++) {
+                            rt += dataDV.getUint8(offs + i) * Math.pow(256, i);
+                        };
+                        return rt;
+                    })());
+                    offs += 6;
+                    file[2].opened = new Date((() => {
+                        var rt = 0;
+                        for (var i = 0; i < 6; i++) {
+                            rt += dataDV.getUint8(offs + i) * Math.pow(256, i);
+                        };
+                        return rt;
+                    })());
+                    offs += 6;
+
+                    var permissions = '';
+                    for (var j = 0; j < 9; j++) {
+                        permissions += (dataU8[offs - (usedTDU8 ? 0 : 128) + Math.floor(j / 8)] >> j % 8) & 1;
+                    };
+                    file[2].permissions = +parseInt(permissions, 2).toString(8);
+
+                    file[2].isFolder = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 1) & 1);
+                    file[2].hidden = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 2) & 1);
+                    file[2].system = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 3) & 1);
+                    file[2].enableBackup = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 4) & 1);
+                    file[2].forceBackup = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 5) & 1);
+                    file[2].readOnly = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 6) & 1);
+                    file[2].mainFile = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 7) & 1);
+                    offs += 2;
+
+                    metadata.files[file[0]] = file[2];
+                };
+                return metadata;
+            default:
+                if (metadata == 0) metadata.version = bufferDV.getUint8(4) > 3 ? bufferDV.getUint8(4) : null;
+        };
+        return metadata;
+    }
 };
