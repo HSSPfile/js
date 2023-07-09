@@ -967,9 +967,9 @@ module.exports = {
             metadata.password.correct = null;
             if (!buffer.subarray(12, 60).equals(Buffer.alloc(48).fill(0))) { // check if file is encrypted
                 metadata.password.correct = false;
-                metadata.password.given.hash = crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64');
+                metadata.password.given.hash = crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('hex');
                 metadata.password.given.clear = password;
-                metadata.password.hash = buffer.subarray(12, 44).toString('base64');
+                metadata.password.hash = buffer.subarray(12, 44).toString('hex');
                 if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) return metadata;
                 metadata.password.correct = true;
                 const iv = buffer.subarray(44, 60);
@@ -1023,9 +1023,9 @@ module.exports = {
             metadata.password.correct = null;
             if (!buffer.subarray(12, 60).equals(Buffer.alloc(48).fill(0))) { // check if file is encrypted
                 metadata.password.correct = false;
-                metadata.password.given.hash = crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64');
+                metadata.password.given.hash = crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('hex');
                 metadata.password.given.clear = password;
-                metadata.password.hash = buffer.subarray(12, 44).toString('base64');
+                metadata.password.hash = buffer.subarray(12, 44).toString('hex');
                 if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) return metadata;
                 metadata.password.correct = true;
                 const iv = buffer.subarray(44, 60);
@@ -1079,9 +1079,9 @@ module.exports = {
             metadata.password.correct = null;
             if (!buffer.subarray(12, 60).equals(Buffer.alloc(48).fill(0))) { // check if file is encrypted
                 metadata.password.correct = false;
-                metadata.password.given.hash = crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64');
+                metadata.password.given.hash = crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('hex');
                 metadata.password.given.clear = password;
-                metadata.password.hash = buffer.subarray(12, 44).toString('base64');
+                metadata.password.hash = buffer.subarray(12, 44).toString('hex');
                 if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) return metadata;
                 metadata.password.correct = true;
                 const iv = buffer.subarray(44, 60);
@@ -1152,9 +1152,9 @@ module.exports = {
                 metadata.password.correct = null;
                 if (!buffer.subarray(12, 60).equals(Buffer.alloc(48).fill(0))) { // check if file is encrypted
                     metadata.password.correct = false;
-                    metadata.password.given.hash = crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64');
+                    metadata.password.given.hash = crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('hex');
                     metadata.password.given.clear = password;
-                    metadata.password.hash = buffer.subarray(12, 44).toString('base64');
+                    metadata.password.hash = buffer.subarray(12, 44).toString('hex');
                     if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) return metadata;
                     metadata.password.correct = true;
                     const iv = buffer.subarray(44, 60);
