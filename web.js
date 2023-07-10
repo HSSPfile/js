@@ -982,6 +982,7 @@ const HSSP = {
             for (var i = 0; i < count; i++) {
                 var filesInBuffer = [];
                 out[i] = new Uint8Array(avgSize + (i == 0 ? bufferPool.byteLength % count : 0));
+                out[i].set(bufferPool.subarray(globalOffs, globalOffs + out[i].byteLength), 0);
                 globalOffs += out[i].byteLength;
 
                 for (var j = 0; j < this.#files.length; j++) {
@@ -1079,7 +1080,6 @@ const HSSP = {
                 });
 
                 var oldOut = out[i];
-                console.log(Array.from(oldOut));
                 out[i] = new Uint8Array(fileStart.byteLength + oldOut.byteLength);
                 out[i].set(fileStart, 0);
                 out[i].set(oldOut, fileStart.byteLength);
