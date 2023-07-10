@@ -735,12 +735,18 @@ class Editor { // Can hold massive amounts of data in a single file
      * @throws {Error} "VERSION_NOT_SUPPORTED" if the version is not supported
      * @throws {Error} "DUDE_YOU_CANNOT_SPLIT_A_FILE_INTO_LESS_THAN_ONE_PART" if the count is less than 1
      * @throws {Error} "DUDE_YOU_CANNOT_SPLIT_SOMETHING_THAT_IS_NOT_THERE" if there are no files to split
+     * @throws {Error} "TOO_MANY_FILES" if the total byte length of the package is smaller than the count
      * @throws {Error} "COMPRESSION_NOT_SUPPORTED" if the compression algorithm is not supported
      */
     toBuffers(count) {
         if (this.#ver !== 4) throw new Error('VERSION_NOT_SUPPORTED');
         if (count < 1) throw new Error('DUDE_YOU_CANNOT_SPLIT_A_FILE_INTO_LESS_THAN_ONE_PART');
         if (this.#files.length < 1) throw new Error('DUDE_YOU_CANNOT_SPLIT_SOMETHING_THAT_IS_NOT_THERE');
+        if ((() => {
+            var size = 0;
+            this.#files.forEach(file => size += file[2].size);
+            return size <= count;
+        })()) throw new Error('TOO_MANY_FILES');
         var offsets = [];
         var lengths = [];
         var bufferPool = Buffer.alloc(0);

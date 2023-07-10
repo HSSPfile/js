@@ -671,6 +671,7 @@ const HSSP = {
          * @throws {Error} "MISSING_DEPENDENCIES" if the dependencies are missing, make sure they are installed with `await HSSP.init()`
          */
         toBuffer() {
+            if (typeof CryptoJS != 'object' && typeof murmurhash3_32_gc != 'function') throw new Error('MISSING_DEPENDENCIES');
             switch (this.#ver) {
                 case 1:
                     var size = 64; // Bytes
@@ -912,7 +913,7 @@ const HSSP = {
                         default:
                             throw new Error('COMPRESSION_NOT_SUPPORTED');
                     };
-                    
+
                     size = outBuf.byteLength;
                     pack = outBuf.slice(128, size);
                     var outBufDV = new DataView(outBuf.buffer);
@@ -935,6 +936,200 @@ const HSSP = {
                     outBufDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(pack), 0x31082007), true); // checksum
                     return outBuf.buffer;
             };
+        }
+
+        /**
+         * Creates {count} HSSP buffers
+         * @param {Number} count The amount of buffers to split the file into
+         * @returns {ArrayBuffer[]} The buffers
+         * 
+         * @since 3.0.0/v4
+         * 
+         * @throws {Error} "VERSION_NOT_SUPPORTED" if the version is not supported
+         * @throws {Error} "DUDE_YOU_CANNOT_SPLIT_A_FILE_INTO_LESS_THAN_ONE_PART" if the count is less than 1
+         * @throws {Error} "DUDE_YOU_CANNOT_SPLIT_SOMETHING_THAT_IS_NOT_THERE" if there are no files to split
+         * @throws {Error} "TOO_MANY_FILES" if the total byte length of the package is smaller than the count
+         * @throws {Error} "COMPRESSION_NOT_SUPPORTED" if the compression algorithm is not supported
+         * @throws {Error} "MISSING_DEPENDENCIES" if the dependencies are missing, make sure they are installed with `await HSSP.init()`
+         */
+        toBuffers(count) {
+            if (typeof CryptoJS != 'object' && typeof murmurhash3_32_gc != 'function') throw new Error('MISSING_DEPENDENCIES');
+            if (this.#ver !== 4) throw new Error('VERSION_NOT_SUPPORTED');
+            if (count < 1) throw new Error('DUDE_YOU_CANNOT_SPLIT_A_FILE_INTO_LESS_THAN_ONE_PART');
+            if (this.#files.length < 1) throw new Error('DUDE_YOU_CANNOT_SPLIT_SOMETHING_THAT_IS_NOT_THERE');
+            if ((() => {
+                var size = 0;
+                this.#files.forEach(file => size += file[1].byteLength);
+                return size <= count;
+            })()) throw new Error('TOO_MANY_FILES');
+
+            var offsets = [];
+            var lengths = [];
+            var bufferPool = new Uint8Array(0);
+            this.#files.forEach(file => {
+                offsets.push(bufferPool.byteLength);
+                lengths.push(file[1].byteLength);
+                var oldPool = bufferPool;
+                bufferPool = new Uint8Array(oldPool.byteLength + file[1].byteLength);
+                bufferPool.set(oldPool, 0);
+                bufferPool.set(file[1], oldPool.byteLength);
+            });
+
+            var globalOffs = 0;
+            const out = [];
+            const avgSize = Math.floor(bufferPool.byteLength / count);
+
+            for (var i = 0; i < count; i++) {
+                var filesInBuffer = [];
+                out[i] = new Uint8Array(avgSize + (i == 0 ? bufferPool.byteLength % count : 0));
+                globalOffs += out[i].byteLength;
+
+                for (var j = 0; j < this.#files.length; j++) {
+                    if (offsets[j] >= globalOffs) continue;
+                    if (offsets[j] + lengths[j] <= globalOffs - out[i].byteLength) continue;
+                    filesInBuffer.push([this.#files[j][0], offsets[j] - (globalOffs - out[i].byteLength), lengths[j], j]);
+                };
+
+                var size = 128; // Bytes
+                filesInBuffer.forEach(file => size +=
+                    38 + // various constants
+
+                    (new TextEncoder().encode(this.#files[file[3]][0])).byteLength + // File name length
+                    (new TextEncoder().encode(this.#files[file[3]][2].owner)).byteLength + // Owner name length
+                    (new TextEncoder().encode(this.#files[file[3]][2].group)).byteLength + // Group name length
+                    (new TextEncoder().encode(this.#files[file[3]][2].webLink)).byteLength // Web link length
+                );
+
+                var fileStart = new Uint8Array(size);
+                var fileStartDV = new DataView(fileStart.buffer);
+                fileStart.set(new TextEncoder().encode('HSSP'), 0); // Magic value :) | 4+0
+                fileStartDV.setUint8(4, 4); // File standard version, see https://hssp.leox.dev/docs/versions | 1+4
+                // these 3 bytes are reserved for future use | 3+5
+                fileStartDV.setUint32(8, filesInBuffer.length, true); // File count | 4+8
+                for (var j = 3; j < 11; j++) {
+                    fileStartDV.setUint32(j * 4, 0, true); // Password hash, if not set = 0 | 32+12
+                    // 12 - 44
+                };
+                for (var j = 0; j < 4; j++) {
+                    fileStartDV.setUint32(j * 4 + 44, 0, true); // Encryption initialization vector (iv), if not set = 0 | 16+44
+                    // 44 - 60
+                };
+                fileStart.set(new TextEncoder().encode(this.#compAlgo), 60); // Used compression algorithm, 0 if not set | 4+60
+
+                fileStartDV.setBigUint64(68, BigInt(this.#files.length), true); // total file count | 8+68
+                fileStartDV.setBigUint64(76, BigInt(filesInBuffer[0][1] <= 0 ? Math.abs(filesInBuffer[0][1]) : 0), true); // split file offset | 8+76
+                if (out[i - 1]) fileStartDV.setUint32(84, murmurhash3_32_gc(new TextDecoder().decode(out[i - 1].subarray(128, out[i - 1].byteLength)), 0x31082007), true); // Checksum of previous package | 4+84
+                fileStartDV.setUint32(88, 0, true); // Checksum of next package | 4+88
+                fileStartDV.setUint32(92, i, true); // File ID of this package | 4+92
+
+                out.set(new TextEncoder().encode(this.#comment.slice(0, 16)), 96); // Comment | 16+96
+                out.set(new TextEncoder().encode('hssp 3.0.0 WEB'), 112); // Used generator | 16+112
+
+                var offs = 128; // Start
+
+                // index
+                filesInBuffer.forEach(file => {
+                    file = this.#files[file[3]];
+
+                    var innerOffs = 0;
+                    fileStartDV.setBigUint64(offs, BigInt(file[1].byteLength), true);
+                    offs += innerOffs + 8;
+
+                    innerOffs = (new TextEncoder().encode(file[0])).byteLength;
+                    fileStartDV.setUint16(offs, innerOffs, true);
+                    fileStart.set(new TextEncoder().encode(file[0]), offs + 2);
+                    offs += innerOffs + 2;
+
+                    innerOffs = (new TextEncoder().encode(file[2].owner)).byteLength;
+                    fileStartDV.setUint16(offs, innerOffs, true);
+                    fileStart.set(new TextEncoder().encode(file[2].owner), offs + 2);
+                    offs += innerOffs + 2;
+
+                    innerOffs = (new TextEncoder().encode(file[2].group)).byteLength;
+                    fileStartDV.setUint16(offs, innerOffs, true);
+                    fileStart.set(new TextEncoder().encode(file[2].group), offs + 2);
+                    offs += innerOffs + 2;
+
+                    innerOffs = (new TextEncoder().encode(file[2].webLink)).byteLength;
+                    fileStartDV.setUint32(offs, innerOffs, true);
+                    fileStart.set(new TextEncoder().encode(file[2].webLink), offs + 4);
+                    offs += innerOffs + 4;
+
+                    var u48c = new Uint8Array(8);
+                    var u48cDV = new DataView(u48c.buffer);
+                    u48cDV.setBigUint64(0, BigInt(file[2].created.getTime()), true);
+                    fileStart.set(u48c.slice(0, 6), offs);
+                    u48cDV.setBigUint64(0, BigInt(file[2].changed.getTime()), true);
+                    fileStart.set(u48c.slice(0, 6), offs + 6);
+                    u48cDV.setBigUint64(0, BigInt(file[2].opened.getTime()), true);
+                    fileStart.set(u48c.slice(0, 6), offs + 12);
+                    offs += 18;
+
+                    parseInt(file[2].permissions, 8).toString(2).split('').map(x => parseInt(x)).forEach((bit, addr) => {
+                        fileStart[offs + Math.floor(addr / 8)] |= (bit << addr);
+                    });
+                    fileStart[offs + 1] |= (+!!file[2].isFolder << 1);
+                    fileStart[offs + 1] |= (+!!file[2].hidden << 2);
+                    fileStart[offs + 1] |= (+!!file[2].system << 3);
+                    fileStart[offs + 1] |= (+!!file[2].enableBackup << 4);
+                    fileStart[offs + 1] |= (+!!file[2].forceBackup << 5);
+                    fileStart[offs + 1] |= (+!!file[2].readOnly << 6);
+                    fileStart[offs + 1] |= (+!!file[2].mainFile << 7);
+                    offs += 2;
+                });
+
+                var oldOut = out[i];
+                out[i] = new Uint8Array(fileStart.byteLength, oldOut.byteLength);
+                out.set(fileStart, 0);
+                out.set(oldOut, fileStart.byteLength);
+                var outBuf = out[i];
+                var pack = outBuf.subarray(128, outBuf.byteLength);
+
+                switch (this.#compAlgo) {
+                    case 'DFLT':
+                        outBuf = HSSP._internal.mergeUint8Arrays(outBuf.subarray(0, 128), pako.deflate(pack, { level: this.#compLvl }));
+                        break;
+
+                    case 'LZMA':
+                        outBuf = HSSP._internal.mergeUint8Arrays(outBuf.subarray(0, 128), LZMA.compress(pack, this.#compLvl));
+                        break;
+
+                    case 'NONE':
+                        break;
+
+                    default:
+                        throw new Error('COMPRESSION_NOT_SUPPORTED');
+                };
+
+                size = outBuf.byteLength;
+                pack = outBuf.slice(128, size);
+                var outBufDV = new DataView(outBuf.buffer);
+                if (this.#pwd !== null) {
+                    const iv = CryptoJS.lib.WordArray.random(16);
+                    const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
+                        iv,
+                        padding: CryptoJS.pad.Pkcs7,
+                        mode: CryptoJS.mode.CBC
+                    }).ciphertext.toUint8Array();
+                    outBuf.set(iv.toUint8Array(), 44);
+                    outBuf.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
+                    const eOut = new Uint8Array(128 + encrypted.byteLength);
+                    const eOutDV = new DataView(eOut.buffer);
+                    eOut.set(outBuf.slice(0, 128), 0);
+                    eOut.set(encrypted, 128);
+                    eOutDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
+                    out[i] = eOut;
+                } else {
+                    outBufDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(pack), 0x31082007), true);
+                    out[i] = outBuf;
+                };
+            };
+
+            out.forEach((buf, i) => {
+                var outDV = new DataView(out[i].buffer);
+                if (out[i + 1]) outDV.setUint32(88, murmurhash3_32_gc(new TextDecoder().decode(out[i + 1].subarray(128, out[i + 1].byteLength)), 0x31082007), true);
+            });
+            return out;
         }
     },
     dependency: {
@@ -977,7 +1172,7 @@ const HSSP = {
         }
     },
     init: () => Promise.all([HSSP.dependency.load('crypto-js'), HSSP.dependency.load('murmurhash-js'), HSSP.dependency.load('lzma-js'), HSSP.dependency.load('pako')]),
-    
+
     /**
      * Returns the metadata of the {buffer}
      * @param {ArrayBuffer} buffer The HSSP buffer to fetch metadata files from
