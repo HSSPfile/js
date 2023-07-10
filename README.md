@@ -8,3 +8,17 @@
 ![GitHub Repo stars](https://img.shields.io/github/stars/HSSPfile/js?style=for-the-badge)
 
 # HSSP for JavaScript
+
+#### Handle HSSP files easily with the official HSSP JavaScript API for Node.js and web.
+###### [Read more about the HSSP file format](https://hssp.leox.dev/)
+---
+
+## Usage
+### Node.js
+
+Create an editor:
+```js
+const HSSP = require('hssp');
+
+const editor = new HSSP.Editor();
+```
