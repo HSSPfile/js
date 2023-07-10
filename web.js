@@ -1079,7 +1079,7 @@ const HSSP = {
                 });
 
                 var oldOut = out[i];
-                out[i] = new Uint8Array(fileStart.byteLength, oldOut.byteLength);
+                out[i] = new Uint8Array(fileStart.byteLength + oldOut.byteLength);
                 out[i].set(fileStart, 0);
                 out[i].set(oldOut, fileStart.byteLength);
                 var outBuf = out[i];
