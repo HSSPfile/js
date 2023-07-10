@@ -1079,6 +1079,7 @@ const HSSP = {
                 });
 
                 var oldOut = out[i];
+                console.log(Array.from(oldOut));
                 out[i] = new Uint8Array(fileStart.byteLength + oldOut.byteLength);
                 out[i].set(fileStart, 0);
                 out[i].set(oldOut, fileStart.byteLength);
