@@ -1080,8 +1080,8 @@ const HSSP = {
 
                 var oldOut = out[i];
                 out[i] = new Uint8Array(fileStart.byteLength, oldOut.byteLength);
-                out.set(fileStart, 0);
-                out.set(oldOut, fileStart.byteLength);
+                out[i].set(fileStart, 0);
+                out[i].set(oldOut, fileStart.byteLength);
                 var outBuf = out[i];
                 var pack = outBuf.subarray(128, outBuf.byteLength);
 
