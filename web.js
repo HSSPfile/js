@@ -974,7 +974,7 @@ const HSSP = {
                 bufferPool.set(oldPool, 0);
                 bufferPool.set(new Uint8Array(file[1]), oldPool.byteLength);
             });
-            console.log();
+            console.log(bufferPool);
 
             var globalOffs = 0;
             const out = [];
