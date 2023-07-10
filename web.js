@@ -1128,6 +1128,7 @@ const HSSP = {
             out.forEach((buf, i) => {
                 var outDV = new DataView(out[i].buffer);
                 if (out[i + 1]) outDV.setUint32(88, murmurhash3_32_gc(new TextDecoder().decode(out[i + 1].subarray(128, out[i + 1].byteLength)), 0x31082007), true);
+                out[i] = out[i].buffer;
             });
             return out;
         }
