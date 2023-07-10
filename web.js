@@ -1022,8 +1022,8 @@ const HSSP = {
                 fileStartDV.setUint32(88, 0, true); // Checksum of next package | 4+88
                 fileStartDV.setUint32(92, i, true); // File ID of this package | 4+92
 
-                out.set(new TextEncoder().encode(this.#comment.slice(0, 16)), 96); // Comment | 16+96
-                out.set(new TextEncoder().encode('hssp 3.0.0 WEB'), 112); // Used generator | 16+112
+                fileStart.set(new TextEncoder().encode(this.#comment.slice(0, 16)), 96); // Comment | 16+96
+                fileStart.set(new TextEncoder().encode('hssp 3.0.0 WEB'), 112); // Used generator | 16+112
 
                 var offs = 128; // Start
 
