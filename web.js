@@ -112,7 +112,7 @@ const HSSP = {
         }
 
         /**
-         * Removes a file from the editor
+         * Removes a file or folder from the editor
          * @param {string} name The name of the file to remove
          * @returns {{buffer: ArrayBuffer, options: {isFolder: boolean, hidden: boolean, system: boolean, enableBackup: boolean, forceBackup: boolean, readOnly: boolean, mainFile: boolean, permissions: number, owner: string, group: string, created: Date, changed: Date, opened: Date, webLink: string}}} The removed file
          * 
