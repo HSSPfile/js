@@ -28,7 +28,7 @@ Continue with [learning about the API](#api).
 ### Web
 - Load HSSP for JavaScript with:
 ```html
-<script src="https://cdn.jsdelivr.net/npm/hssp@3/web.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hssp@4/web.min.js"></script>
 ```
 - Create an editor:
 ```js
@@ -62,6 +62,7 @@ editor.addFile('my-folder/test.txt', fs.readFileSync('test2.txt'));
 editor.addFile('my-folder/test.txt', (new TextEncoder()).encode('Hello, world! 2').buffer);
 ```
 - Delete a file:
+
 **Note:** _This method will return the file Buffer/ArrayBuffer._
 ```js
 editor.remove('test.txt');
@@ -70,6 +71,7 @@ editor.remove('test.txt');
 ```js
 editor.remove('my-folder');
 ```
+
 **Note:** _This will only remove the folder, not the files in it! If you want to remove the folder with the files in it, use:_
 ```js
 var folderName = 'my-folder';
@@ -85,7 +87,7 @@ editor.remove(folderName); // Remove the folder itself
 
 - Set output file version:
 ```js
-editor.version = 4; // 4 is set by default, 1-4 are valid version numbers
+editor.version = 5; // 5 is set by default, 1-5 are valid version numbers
 ```
 - Enable output encryption:
 ```js
@@ -96,6 +98,7 @@ editor.password = 'MySecretPassword'; // write-only
 editor.password = null; // Encryption is disabled by default
 ```
 - Enable output compression ([Supported algorithms](#supported-compression-algorithms)):
+
 **Note:** _Requires editor.version is 4 or higher._
 ```js
 editor.compression = { algorithm: 'LZMA', level: 9 }; // Level default is 5
@@ -105,6 +108,7 @@ editor.compression = { algorithm: 'LZMA', level: 9 }; // Level default is 5
 editor.compression = null; // default
 ```
 - Add a comment:
+
 **Note:** _Requires editor.version is 4 or higher. The comment can be up to 16 characters (UTF-8) long._
 ```js
 editor.comment = 'Hello :)';
@@ -112,7 +116,7 @@ editor.comment = 'Hello :)';
 
 #### Importing HSSP files
 
-Currently supports HSSP 1-4.
+Currently supports HSSP 1-5.
 
 - Importing HSSP files _without_ encryption:
 ```js
@@ -145,7 +149,7 @@ document.querySelector('input[type=file]').onchange = async (ev) => {
 
 #### Creating HSSP files
 
-Currently supports HSSP 1-4.
+Currently supports HSSP 1-5.
 
 - Creating _one_ file:
 ```js
@@ -162,6 +166,7 @@ a.click();
 URL.revokeObjectURL(url);
 ```
 - Creating _multiple_ files:
+
 **Note:** _This method can only be used if `editor.version` is 4 or higher. You also cannot create more files than bytes included._
 ```js
 // Node
@@ -185,7 +190,7 @@ editor.toBuffers(4).forEach((buf, i) => {
 
 #### Fetching metadata from HSSP file
 
-Currently supports HSSP 1-4.
+Currently supports HSSP 1-5.
 
 Fetching metadata is as simple as that:
 ```js
@@ -236,7 +241,7 @@ editor.addFolder(name, options);
 
 Feel free to contribute by [opening an issue](https://github.com/HSSPfile/js/issues/new/choose) and requesting new features, reporting bugs or just asking questions.
 
-You can also [fork the repository](https://github.com/HSSPfile/js/fork) and opening a [pull request](https://github.com/HSSPfile/js/pulls) after making some changes like fixing bugs.
+You can also [fork the repository](https://github.com/HSSPfile/js/fork) and open a [pull request](https://github.com/HSSPfile/js/pulls) after making some changes like fixing bugs.
 
 ## [License](LICENSE)
 

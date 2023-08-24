@@ -181,7 +181,7 @@ const HSSP = {
          * @since 3.0.0/v4
          */
         set version(int) {
-            this.#ver = +int < 5 && 0 < +int ? +int : this.#ver;
+            this.#ver = +int < 6 && 0 < +int ? +int : this.#ver;
         }
 
         /**
@@ -1015,7 +1015,163 @@ const HSSP = {
                     out.set(new TextEncoder().encode(this.#compAlgo), 60); // Used compression algorithm, 0 if not set | 4+60
                     // this file is not split | 28+68
                     out.set(new TextEncoder().encode(this.#comment.slice(0, 16)), 96); // Comment | 16+96
-                    out.set(new TextEncoder().encode('hssp 3.0.0 WEB'), 112); // Used generator | 16+112
+                    out.set(new TextEncoder().encode('hssp 4.0.0 WEB'), 112); // Used generator | 16+112
+
+                    var offs = 128; // Start
+
+                    // index
+                    this.#files.forEach(file => {
+                        var innerOffs = 0;
+                        outDV.setBigUint64(offs, BigInt(file[1].byteLength), true);
+                        offs += innerOffs + 8;
+
+                        innerOffs = (new TextEncoder().encode(file[0])).byteLength;
+                        outDV.setUint16(offs, innerOffs, true);
+                        out.set(new TextEncoder().encode(file[0]), offs + 2);
+                        offs += innerOffs + 2;
+
+                        innerOffs = (new TextEncoder().encode(file[2].owner)).byteLength;
+                        outDV.setUint16(offs, innerOffs, true);
+                        out.set(new TextEncoder().encode(file[2].owner), offs + 2);
+                        offs += innerOffs + 2;
+
+                        innerOffs = (new TextEncoder().encode(file[2].group)).byteLength;
+                        outDV.setUint16(offs, innerOffs, true);
+                        out.set(new TextEncoder().encode(file[2].group), offs + 2);
+                        offs += innerOffs + 2;
+
+                        innerOffs = (new TextEncoder().encode(file[2].webLink)).byteLength;
+                        outDV.setUint32(offs, innerOffs, true);
+                        out.set(new TextEncoder().encode(file[2].webLink), offs + 4);
+                        offs += innerOffs + 4;
+
+                        var u48c = new Uint8Array(8);
+                        var u48cDV = new DataView(u48c.buffer);
+                        u48cDV.setBigUint64(0, BigInt(file[2].created.getTime()), true);
+                        out.set(u48c.slice(0, 6), offs);
+                        u48cDV.setBigUint64(0, BigInt(file[2].changed.getTime()), true);
+                        out.set(u48c.slice(0, 6), offs + 6);
+                        u48cDV.setBigUint64(0, BigInt(file[2].opened.getTime()), true);
+                        out.set(u48c.slice(0, 6), offs + 12);
+                        offs += 18;
+
+                        parseInt(file[2].permissions, 8).toString(2).split('').map(x => parseInt(x)).forEach((bit, addr) => {
+                            out[offs + Math.floor(addr / 8)] |= (bit << addr);
+                        });
+                        out[offs + 1] |= (+!!file[2].isFolder << 1);
+                        out[offs + 1] |= (+!!file[2].hidden << 2);
+                        out[offs + 1] |= (+!!file[2].system << 3);
+                        out[offs + 1] |= (+!!file[2].enableBackup << 4);
+                        out[offs + 1] |= (+!!file[2].forceBackup << 5);
+                        out[offs + 1] |= (+!!file[2].readOnly << 6);
+                        out[offs + 1] |= (+!!file[2].mainFile << 7);
+                        offs += 2;
+                    });
+
+                    // files
+                    this.#files.forEach(file => {
+                        out.set(new Uint8Array(file[1].buffer), offs); // file
+                        offs += file[1].byteLength;
+                    });
+                    var outBuf = out;
+                    var pack = outBuf.subarray(128, size);
+
+                    switch (this.#compAlgo) {
+                        case 'DFLT':
+                            outBuf = HSSP._internal.mergeUint8Arrays(outBuf.subarray(0, 128), pako.deflate(pack, { level: this.#compLvl }));
+                            break;
+
+                        case 'LZMA':
+                            outBuf = HSSP._internal.mergeUint8Arrays(outBuf.subarray(0, 128), LZMA.compress(pack, this.#compLvl));
+                            break;
+
+                        case 'NONE':
+                            break;
+
+                        default:
+                            throw new Error('COMPRESSION_NOT_SUPPORTED');
+                    };
+
+                    size = outBuf.byteLength;
+                    pack = outBuf.slice(128, size);
+                    var outBufDV = new DataView(outBuf.buffer);
+                    if (this.#pwd !== null) {
+                        const iv = CryptoJS.lib.WordArray.random(16);
+                        const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
+                            iv,
+                            padding: CryptoJS.pad.Pkcs7,
+                            mode: CryptoJS.mode.CBC
+                        }).ciphertext.toUint8Array();
+                        outBuf.set(iv.toUint8Array(), 44);
+                        outBuf.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
+                        const eOut = new Uint8Array(128 + encrypted.byteLength);
+                        const eOutDV = new DataView(eOut.buffer);
+                        eOut.set(outBuf.slice(0, 128), 0);
+                        eOut.set(encrypted, 128);
+                        eOutDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
+                        return eOut;
+                    };
+                    outBufDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(pack), 0x31082007), true); // checksum
+                    return outBuf.buffer;
+                case 5:
+                    var size = 128; // Bytes
+                    this.#files.forEach(file => size +=
+                        38 + // various constants
+
+                        (new TextEncoder().encode(file[0])).byteLength + // File name length
+                        (new TextEncoder().encode(file[2].owner)).byteLength + // Owner name length
+                        (new TextEncoder().encode(file[2].group)).byteLength + // Group name length
+                        (new TextEncoder().encode(file[2].webLink)).byteLength + // Web link length
+
+                        file[1].byteLength
+                    );
+                    var out = new Uint8Array(size);
+                    var outDV = new DataView(out.buffer);
+                    out.set(new TextEncoder().encode('HSSP'), 0); // Magic value :) | 4+0
+                    outDV.setUint8(4, 5); // File standard version, see https://hssp.leox.dev/docs/versions | 1+4
+                    outDV.setUint8(5, parseInt([
+                        this.#pwd !== null, // F1: is encrypted
+                        this.#compAlgo !== 'NONE', // F2: is compressed
+                        false, // F3: is split
+                        false, // F4: unallocated
+                        false, // F5: unallocated
+                        false, // F6: unallocated
+                        false, // F7: unallocated
+                        false // F8: unallocated
+                    ].map(b => +b).join(''), 2)); // Flags #1, see https://hssp.leox.dev/docs/flags | 1+5
+                    outDV.setUint8(6, parseInt([
+                        false, // F9: unallocated
+                        false, // F10: unallocated
+                        false, // F11: unallocated
+                        false, // F12: unallocated
+                        false, // F13: unallocated
+                        false, // F14: unallocated
+                        false, // F15: unallocated
+                        false // F16: unallocated
+                    ].map(b => +b).join(''), 2)); // Flags #2, see https://hssp.leox.dev/docs/flags | 1+6
+                    outDV.setUint8(7, parseInt([
+                        false, // F17: unallocated
+                        false, // F18: unallocated
+                        false, // F19: unallocated
+                        false, // F20: unallocated
+                        false, // F21: unallocated
+                        false, // F22: unallocated
+                        false, // F23: unallocated
+                        false // F24: unallocated
+                    ].map(b => +b).join(''), 2)); // Flags #3, see https://hssp.leox.dev/docs/flags | 1+7
+                    outDV.setUint32(8, this.#files.length, true); // File count | 4+8
+                    for (var i = 3; i < 11; i++) {
+                        outDV.setUint32(i * 4, 0, true); // Password hash, if not set = 0 | 32+12
+                        // 12 - 44
+                    };
+                    for (var i = 0; i < 4; i++) {
+                        outDV.setUint32(i * 4 + 44, 0, true); // Encryption initialization vector (iv), if not set = 0 | 16+44
+                        // 44 - 60
+                    };
+                    out.set(new TextEncoder().encode(this.#compAlgo), 60); // Used compression algorithm, 0 if not set | 4+60
+                    // this file is not split | 28+68
+                    out.set(new TextEncoder().encode(this.#comment.slice(0, 16)), 96); // Comment | 16+96
+                    out.set(new TextEncoder().encode('hssp 4.0.0 WEB'), 112); // Used generator | 16+112
 
                     var offs = 128; // Start
 
@@ -1132,7 +1288,7 @@ const HSSP = {
          */
         toBuffers(count) {
             if (typeof CryptoJS != 'object' && typeof murmurhash3_32_gc != 'function') throw new Error('MISSING_DEPENDENCIES');
-            if (this.#ver !== 4) throw new Error('VERSION_NOT_SUPPORTED');
+            if (this.#ver !== 4 || this.#ver !== 5) throw new Error('VERSION_NOT_SUPPORTED');
             if (count < 1) throw new Error('DUDE_YOU_CANNOT_SPLIT_A_FILE_INTO_LESS_THAN_ONE_PART');
             if (this.#files.length < 1) throw new Error('DUDE_YOU_CANNOT_SPLIT_SOMETHING_THAT_IS_NOT_THERE');
             if ((() => {
@@ -1169,138 +1325,311 @@ const HSSP = {
                     filesInBuffer.push([this.#files[j][0], offsets[j] - (globalOffs - out[i].byteLength), lengths[j], j]);
                 };
 
-                var size = 128; // Bytes
-                filesInBuffer.forEach(file => size +=
-                    38 + // various constants
+                switch (this.#ver) {
+                    case 4:
+                        var size = 128; // Bytes
+                        filesInBuffer.forEach(file => size +=
+                            38 + // various constants
 
-                    (new TextEncoder().encode(this.#files[file[3]][0])).byteLength + // File name length
-                    (new TextEncoder().encode(this.#files[file[3]][2].owner)).byteLength + // Owner name length
-                    (new TextEncoder().encode(this.#files[file[3]][2].group)).byteLength + // Group name length
-                    (new TextEncoder().encode(this.#files[file[3]][2].webLink)).byteLength // Web link length
-                );
+                            (new TextEncoder().encode(this.#files[file[3]][0])).byteLength + // File name length
+                            (new TextEncoder().encode(this.#files[file[3]][2].owner)).byteLength + // Owner name length
+                            (new TextEncoder().encode(this.#files[file[3]][2].group)).byteLength + // Group name length
+                            (new TextEncoder().encode(this.#files[file[3]][2].webLink)).byteLength // Web link length
+                        );
 
-                var fileStart = new Uint8Array(size);
-                var fileStartDV = new DataView(fileStart.buffer);
-                fileStart.set(new TextEncoder().encode('HSSP'), 0); // Magic value :) | 4+0
-                fileStartDV.setUint8(4, 4); // File standard version, see https://hssp.leox.dev/docs/versions | 1+4
-                // these 3 bytes are reserved for future use | 3+5
-                fileStartDV.setUint32(8, filesInBuffer.length, true); // File count | 4+8
-                for (var j = 3; j < 11; j++) {
-                    fileStartDV.setUint32(j * 4, 0, true); // Password hash, if not set = 0 | 32+12
-                    // 12 - 44
-                };
-                for (var j = 0; j < 4; j++) {
-                    fileStartDV.setUint32(j * 4 + 44, 0, true); // Encryption initialization vector (iv), if not set = 0 | 16+44
-                    // 44 - 60
-                };
-                fileStart.set(new TextEncoder().encode(this.#compAlgo), 60); // Used compression algorithm, 0 if not set | 4+60
+                        var fileStart = new Uint8Array(size);
+                        var fileStartDV = new DataView(fileStart.buffer);
+                        fileStart.set(new TextEncoder().encode('HSSP'), 0); // Magic value :) | 4+0
+                        fileStartDV.setUint8(4, 4); // File standard version, see https://hssp.leox.dev/docs/versions | 1+4
+                        // these 3 bytes are reserved for future use | 3+5
+                        fileStartDV.setUint32(8, filesInBuffer.length, true); // File count | 4+8
+                        for (var j = 3; j < 11; j++) {
+                            fileStartDV.setUint32(j * 4, 0, true); // Password hash, if not set = 0 | 32+12
+                            // 12 - 44
+                        };
+                        for (var j = 0; j < 4; j++) {
+                            fileStartDV.setUint32(j * 4 + 44, 0, true); // Encryption initialization vector (iv), if not set = 0 | 16+44
+                            // 44 - 60
+                        };
+                        fileStart.set(new TextEncoder().encode(this.#compAlgo), 60); // Used compression algorithm, 0 if not set | 4+60
 
-                fileStartDV.setBigUint64(68, BigInt(this.#files.length), true); // total file count | 8+68
-                fileStartDV.setBigUint64(76, BigInt(filesInBuffer[0][1] <= 0 ? Math.abs(filesInBuffer[0][1]) : 0), true); // split file offset | 8+76
-                if (out[i - 1]) fileStartDV.setUint32(84, murmurhash3_32_gc(new TextDecoder().decode(out[i - 1].subarray(128, out[i - 1].byteLength)), 0x31082007), true); // Checksum of previous package | 4+84
-                fileStartDV.setUint32(88, 0, true); // Checksum of next package | 4+88
-                fileStartDV.setUint32(92, i, true); // File ID of this package | 4+92
+                        fileStartDV.setBigUint64(68, BigInt(this.#files.length), true); // total file count | 8+68
+                        fileStartDV.setBigUint64(76, BigInt(filesInBuffer[0][1] <= 0 ? Math.abs(filesInBuffer[0][1]) : 0), true); // split file offset | 8+76
+                        if (out[i - 1]) fileStartDV.setUint32(84, murmurhash3_32_gc(new TextDecoder().decode(out[i - 1].subarray(128, out[i - 1].byteLength)), 0x31082007), true); // Checksum of previous package | 4+84
+                        fileStartDV.setUint32(88, 0, true); // Checksum of next package | 4+88
+                        fileStartDV.setUint32(92, i, true); // File ID of this package | 4+92
 
-                fileStart.set(new TextEncoder().encode(this.#comment.slice(0, 16)), 96); // Comment | 16+96
-                fileStart.set(new TextEncoder().encode('hssp 3.0.0 WEB'), 112); // Used generator | 16+112
+                        fileStart.set(new TextEncoder().encode(this.#comment.slice(0, 16)), 96); // Comment | 16+96
+                        fileStart.set(new TextEncoder().encode('hssp 4.0.0 WEB'), 112); // Used generator | 16+112
 
-                var offs = 128; // Start
+                        var offs = 128; // Start
 
-                // index
-                filesInBuffer.forEach(file => {
-                    file = this.#files[file[3]];
+                        // index
+                        filesInBuffer.forEach(file => {
+                            file = this.#files[file[3]];
 
-                    var innerOffs = 0;
-                    fileStartDV.setBigUint64(offs, BigInt(file[1].byteLength), true);
-                    offs += innerOffs + 8;
+                            var innerOffs = 0;
+                            fileStartDV.setBigUint64(offs, BigInt(file[1].byteLength), true);
+                            offs += innerOffs + 8;
 
-                    innerOffs = (new TextEncoder().encode(file[0])).byteLength;
-                    fileStartDV.setUint16(offs, innerOffs, true);
-                    fileStart.set(new TextEncoder().encode(file[0]), offs + 2);
-                    offs += innerOffs + 2;
+                            innerOffs = (new TextEncoder().encode(file[0])).byteLength;
+                            fileStartDV.setUint16(offs, innerOffs, true);
+                            fileStart.set(new TextEncoder().encode(file[0]), offs + 2);
+                            offs += innerOffs + 2;
 
-                    innerOffs = (new TextEncoder().encode(file[2].owner)).byteLength;
-                    fileStartDV.setUint16(offs, innerOffs, true);
-                    fileStart.set(new TextEncoder().encode(file[2].owner), offs + 2);
-                    offs += innerOffs + 2;
+                            innerOffs = (new TextEncoder().encode(file[2].owner)).byteLength;
+                            fileStartDV.setUint16(offs, innerOffs, true);
+                            fileStart.set(new TextEncoder().encode(file[2].owner), offs + 2);
+                            offs += innerOffs + 2;
 
-                    innerOffs = (new TextEncoder().encode(file[2].group)).byteLength;
-                    fileStartDV.setUint16(offs, innerOffs, true);
-                    fileStart.set(new TextEncoder().encode(file[2].group), offs + 2);
-                    offs += innerOffs + 2;
+                            innerOffs = (new TextEncoder().encode(file[2].group)).byteLength;
+                            fileStartDV.setUint16(offs, innerOffs, true);
+                            fileStart.set(new TextEncoder().encode(file[2].group), offs + 2);
+                            offs += innerOffs + 2;
 
-                    innerOffs = (new TextEncoder().encode(file[2].webLink)).byteLength;
-                    fileStartDV.setUint32(offs, innerOffs, true);
-                    fileStart.set(new TextEncoder().encode(file[2].webLink), offs + 4);
-                    offs += innerOffs + 4;
+                            innerOffs = (new TextEncoder().encode(file[2].webLink)).byteLength;
+                            fileStartDV.setUint32(offs, innerOffs, true);
+                            fileStart.set(new TextEncoder().encode(file[2].webLink), offs + 4);
+                            offs += innerOffs + 4;
 
-                    var u48c = new Uint8Array(8);
-                    var u48cDV = new DataView(u48c.buffer);
-                    u48cDV.setBigUint64(0, BigInt(file[2].created.getTime()), true);
-                    fileStart.set(u48c.slice(0, 6), offs);
-                    u48cDV.setBigUint64(0, BigInt(file[2].changed.getTime()), true);
-                    fileStart.set(u48c.slice(0, 6), offs + 6);
-                    u48cDV.setBigUint64(0, BigInt(file[2].opened.getTime()), true);
-                    fileStart.set(u48c.slice(0, 6), offs + 12);
-                    offs += 18;
+                            var u48c = new Uint8Array(8);
+                            var u48cDV = new DataView(u48c.buffer);
+                            u48cDV.setBigUint64(0, BigInt(file[2].created.getTime()), true);
+                            fileStart.set(u48c.slice(0, 6), offs);
+                            u48cDV.setBigUint64(0, BigInt(file[2].changed.getTime()), true);
+                            fileStart.set(u48c.slice(0, 6), offs + 6);
+                            u48cDV.setBigUint64(0, BigInt(file[2].opened.getTime()), true);
+                            fileStart.set(u48c.slice(0, 6), offs + 12);
+                            offs += 18;
 
-                    parseInt(file[2].permissions, 8).toString(2).split('').map(x => parseInt(x)).forEach((bit, addr) => {
-                        fileStart[offs + Math.floor(addr / 8)] |= (bit << addr);
-                    });
-                    fileStart[offs + 1] |= (+!!file[2].isFolder << 1);
-                    fileStart[offs + 1] |= (+!!file[2].hidden << 2);
-                    fileStart[offs + 1] |= (+!!file[2].system << 3);
-                    fileStart[offs + 1] |= (+!!file[2].enableBackup << 4);
-                    fileStart[offs + 1] |= (+!!file[2].forceBackup << 5);
-                    fileStart[offs + 1] |= (+!!file[2].readOnly << 6);
-                    fileStart[offs + 1] |= (+!!file[2].mainFile << 7);
-                    offs += 2;
-                });
+                            parseInt(file[2].permissions, 8).toString(2).split('').map(x => parseInt(x)).forEach((bit, addr) => {
+                                fileStart[offs + Math.floor(addr / 8)] |= (bit << addr);
+                            });
+                            fileStart[offs + 1] |= (+!!file[2].isFolder << 1);
+                            fileStart[offs + 1] |= (+!!file[2].hidden << 2);
+                            fileStart[offs + 1] |= (+!!file[2].system << 3);
+                            fileStart[offs + 1] |= (+!!file[2].enableBackup << 4);
+                            fileStart[offs + 1] |= (+!!file[2].forceBackup << 5);
+                            fileStart[offs + 1] |= (+!!file[2].readOnly << 6);
+                            fileStart[offs + 1] |= (+!!file[2].mainFile << 7);
+                            offs += 2;
+                        });
 
-                var oldOut = out[i];
-                out[i] = new Uint8Array(fileStart.byteLength + oldOut.byteLength);
-                out[i].set(fileStart, 0);
-                out[i].set(oldOut, fileStart.byteLength);
-                var outBuf = out[i];
-                var pack = outBuf.subarray(128, outBuf.byteLength);
+                        var oldOut = out[i];
+                        out[i] = new Uint8Array(fileStart.byteLength + oldOut.byteLength);
+                        out[i].set(fileStart, 0);
+                        out[i].set(oldOut, fileStart.byteLength);
+                        var outBuf = out[i];
+                        var pack = outBuf.subarray(128, outBuf.byteLength);
 
-                switch (this.#compAlgo) {
-                    case 'DFLT':
-                        outBuf = HSSP._internal.mergeUint8Arrays(outBuf.subarray(0, 128), pako.deflate(pack, { level: this.#compLvl }));
+                        switch (this.#compAlgo) {
+                            case 'DFLT':
+                                outBuf = HSSP._internal.mergeUint8Arrays(outBuf.subarray(0, 128), pako.deflate(pack, { level: this.#compLvl }));
+                                break;
+
+                            case 'LZMA':
+                                outBuf = HSSP._internal.mergeUint8Arrays(outBuf.subarray(0, 128), LZMA.compress(pack, this.#compLvl));
+                                break;
+
+                            case 'NONE':
+                                break;
+
+                            default:
+                                throw new Error('COMPRESSION_NOT_SUPPORTED');
+                        };
+
+                        size = outBuf.byteLength;
+                        pack = outBuf.slice(128, size);
+                        var outBufDV = new DataView(outBuf.buffer);
+                        if (this.#pwd !== null) {
+                            const iv = CryptoJS.lib.WordArray.random(16);
+                            const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
+                                iv,
+                                padding: CryptoJS.pad.Pkcs7,
+                                mode: CryptoJS.mode.CBC
+                            }).ciphertext.toUint8Array();
+                            outBuf.set(iv.toUint8Array(), 44);
+                            outBuf.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
+                            const eOut = new Uint8Array(128 + encrypted.byteLength);
+                            const eOutDV = new DataView(eOut.buffer);
+                            eOut.set(outBuf.slice(0, 128), 0);
+                            eOut.set(encrypted, 128);
+                            eOutDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
+                            out[i] = eOut;
+                        } else {
+                            outBufDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(pack), 0x31082007), true);
+                            out[i] = outBuf;
+                        };
                         break;
 
-                    case 'LZMA':
-                        outBuf = HSSP._internal.mergeUint8Arrays(outBuf.subarray(0, 128), LZMA.compress(pack, this.#compLvl));
-                        break;
+                    case 5:
+                        var size = 128; // Bytes
+                        filesInBuffer.forEach(file => size +=
+                            38 + // various constants
 
-                    case 'NONE':
+                            (new TextEncoder().encode(this.#files[file[3]][0])).byteLength + // File name length
+                            (new TextEncoder().encode(this.#files[file[3]][2].owner)).byteLength + // Owner name length
+                            (new TextEncoder().encode(this.#files[file[3]][2].group)).byteLength + // Group name length
+                            (new TextEncoder().encode(this.#files[file[3]][2].webLink)).byteLength // Web link length
+                        );
+
+                        var fileStart = new Uint8Array(size);
+                        var fileStartDV = new DataView(fileStart.buffer);
+                        fileStart.set(new TextEncoder().encode('HSSP'), 0); // Magic value :) | 4+0
+                        fileStartDV.setUint8(4, 4); // File standard version, see https://hssp.leox.dev/docs/versions | 1+4
+                        fileStartDV.setUint8(4, 5); // File standard version, see https://hssp.leox.dev/docs/versions | 1+4
+                        fileStartDV.setUint8(5, parseInt([
+                            this.#pwd !== null, // F1: is encrypted
+                            this.#compAlgo !== 'NONE', // F2: is compressed
+                            true, // F3: is split
+                            false, // F4: unallocated
+                            false, // F5: unallocated
+                            false, // F6: unallocated
+                            false, // F7: unallocated
+                            false // F8: unallocated
+                        ].map(b => +b).join(''), 2)); // Flags #1, see https://hssp.leox.dev/docs/flags | 1+5
+                        fileStartDV.setUint8(6, parseInt([
+                            false, // F9: unallocated
+                            false, // F10: unallocated
+                            false, // F11: unallocated
+                            false, // F12: unallocated
+                            false, // F13: unallocated
+                            false, // F14: unallocated
+                            false, // F15: unallocated
+                            false // F16: unallocated
+                        ].map(b => +b).join(''), 2)); // Flags #2, see https://hssp.leox.dev/docs/flags | 1+6
+                        fileStartDV.setUint8(7, parseInt([
+                            false, // F17: unallocated
+                            false, // F18: unallocated
+                            false, // F19: unallocated
+                            false, // F20: unallocated
+                            false, // F21: unallocated
+                            false, // F22: unallocated
+                            false, // F23: unallocated
+                            false // F24: unallocated
+                        ].map(b => +b).join(''), 2)); // Flags #3, see https://hssp.leox.dev/docs/flags | 1+7
+                        fileStartDV.setUint32(8, filesInBuffer.length, true); // File count | 4+8
+                        for (var j = 3; j < 11; j++) {
+                            fileStartDV.setUint32(j * 4, 0, true); // Password hash, if not set = 0 | 32+12
+                            // 12 - 44
+                        };
+                        for (var j = 0; j < 4; j++) {
+                            fileStartDV.setUint32(j * 4 + 44, 0, true); // Encryption initialization vector (iv), if not set = 0 | 16+44
+                            // 44 - 60
+                        };
+                        fileStart.set(new TextEncoder().encode(this.#compAlgo), 60); // Used compression algorithm, 0 if not set | 4+60
+
+                        fileStartDV.setBigUint64(68, BigInt(this.#files.length), true); // total file count | 8+68
+                        fileStartDV.setBigUint64(76, BigInt(filesInBuffer[0][1] <= 0 ? Math.abs(filesInBuffer[0][1]) : 0), true); // split file offset | 8+76
+                        if (out[i - 1]) fileStartDV.setUint32(84, murmurhash3_32_gc(new TextDecoder().decode(out[i - 1].subarray(128, out[i - 1].byteLength)), 0x31082007), true); // Checksum of previous package | 4+84
+                        fileStartDV.setUint32(88, 0, true); // Checksum of next package | 4+88
+                        fileStartDV.setUint32(92, i, true); // File ID of this package | 4+92
+
+                        fileStart.set(new TextEncoder().encode(this.#comment.slice(0, 16)), 96); // Comment | 16+96
+                        fileStart.set(new TextEncoder().encode('hssp 4.0.0 WEB'), 112); // Used generator | 16+112
+
+                        var offs = 128; // Start
+
+                        // index
+                        filesInBuffer.forEach(file => {
+                            file = this.#files[file[3]];
+
+                            var innerOffs = 0;
+                            fileStartDV.setBigUint64(offs, BigInt(file[1].byteLength), true);
+                            offs += innerOffs + 8;
+
+                            innerOffs = (new TextEncoder().encode(file[0])).byteLength;
+                            fileStartDV.setUint16(offs, innerOffs, true);
+                            fileStart.set(new TextEncoder().encode(file[0]), offs + 2);
+                            offs += innerOffs + 2;
+
+                            innerOffs = (new TextEncoder().encode(file[2].owner)).byteLength;
+                            fileStartDV.setUint16(offs, innerOffs, true);
+                            fileStart.set(new TextEncoder().encode(file[2].owner), offs + 2);
+                            offs += innerOffs + 2;
+
+                            innerOffs = (new TextEncoder().encode(file[2].group)).byteLength;
+                            fileStartDV.setUint16(offs, innerOffs, true);
+                            fileStart.set(new TextEncoder().encode(file[2].group), offs + 2);
+                            offs += innerOffs + 2;
+
+                            innerOffs = (new TextEncoder().encode(file[2].webLink)).byteLength;
+                            fileStartDV.setUint32(offs, innerOffs, true);
+                            fileStart.set(new TextEncoder().encode(file[2].webLink), offs + 4);
+                            offs += innerOffs + 4;
+
+                            var u48c = new Uint8Array(8);
+                            var u48cDV = new DataView(u48c.buffer);
+                            u48cDV.setBigUint64(0, BigInt(file[2].created.getTime()), true);
+                            fileStart.set(u48c.slice(0, 6), offs);
+                            u48cDV.setBigUint64(0, BigInt(file[2].changed.getTime()), true);
+                            fileStart.set(u48c.slice(0, 6), offs + 6);
+                            u48cDV.setBigUint64(0, BigInt(file[2].opened.getTime()), true);
+                            fileStart.set(u48c.slice(0, 6), offs + 12);
+                            offs += 18;
+
+                            parseInt(file[2].permissions, 8).toString(2).split('').map(x => parseInt(x)).forEach((bit, addr) => {
+                                fileStart[offs + Math.floor(addr / 8)] |= (bit << addr);
+                            });
+                            fileStart[offs + 1] |= (+!!file[2].isFolder << 1);
+                            fileStart[offs + 1] |= (+!!file[2].hidden << 2);
+                            fileStart[offs + 1] |= (+!!file[2].system << 3);
+                            fileStart[offs + 1] |= (+!!file[2].enableBackup << 4);
+                            fileStart[offs + 1] |= (+!!file[2].forceBackup << 5);
+                            fileStart[offs + 1] |= (+!!file[2].readOnly << 6);
+                            fileStart[offs + 1] |= (+!!file[2].mainFile << 7);
+                            offs += 2;
+                        });
+
+                        var oldOut = out[i];
+                        out[i] = new Uint8Array(fileStart.byteLength + oldOut.byteLength);
+                        out[i].set(fileStart, 0);
+                        out[i].set(oldOut, fileStart.byteLength);
+                        var outBuf = out[i];
+                        var pack = outBuf.subarray(128, outBuf.byteLength);
+
+                        switch (this.#compAlgo) {
+                            case 'DFLT':
+                                outBuf = HSSP._internal.mergeUint8Arrays(outBuf.subarray(0, 128), pako.deflate(pack, { level: this.#compLvl }));
+                                break;
+
+                            case 'LZMA':
+                                outBuf = HSSP._internal.mergeUint8Arrays(outBuf.subarray(0, 128), LZMA.compress(pack, this.#compLvl));
+                                break;
+
+                            case 'NONE':
+                                break;
+
+                            default:
+                                throw new Error('COMPRESSION_NOT_SUPPORTED');
+                        };
+
+                        size = outBuf.byteLength;
+                        pack = outBuf.slice(128, size);
+                        var outBufDV = new DataView(outBuf.buffer);
+                        if (this.#pwd !== null) {
+                            const iv = CryptoJS.lib.WordArray.random(16);
+                            const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
+                                iv,
+                                padding: CryptoJS.pad.Pkcs7,
+                                mode: CryptoJS.mode.CBC
+                            }).ciphertext.toUint8Array();
+                            outBuf.set(iv.toUint8Array(), 44);
+                            outBuf.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
+                            const eOut = new Uint8Array(128 + encrypted.byteLength);
+                            const eOutDV = new DataView(eOut.buffer);
+                            eOut.set(outBuf.slice(0, 128), 0);
+                            eOut.set(encrypted, 128);
+                            eOutDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
+                            out[i] = eOut;
+                        } else {
+                            outBufDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(pack), 0x31082007), true);
+                            out[i] = outBuf;
+                        };
                         break;
 
                     default:
-                        throw new Error('COMPRESSION_NOT_SUPPORTED');
-                };
-
-                size = outBuf.byteLength;
-                pack = outBuf.slice(128, size);
-                var outBufDV = new DataView(outBuf.buffer);
-                if (this.#pwd !== null) {
-                    const iv = CryptoJS.lib.WordArray.random(16);
-                    const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
-                        iv,
-                        padding: CryptoJS.pad.Pkcs7,
-                        mode: CryptoJS.mode.CBC
-                    }).ciphertext.toUint8Array();
-                    outBuf.set(iv.toUint8Array(), 44);
-                    outBuf.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
-                    const eOut = new Uint8Array(128 + encrypted.byteLength);
-                    const eOutDV = new DataView(eOut.buffer);
-                    eOut.set(outBuf.slice(0, 128), 0);
-                    eOut.set(encrypted, 128);
-                    eOutDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
-                    out[i] = eOut;
-                } else {
-                    outBufDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(pack), 0x31082007), true);
-                    out[i] = outBuf;
+                        throw new Error('VERSION_NOT_SUPPORTED');
                 };
             };
 
@@ -1757,6 +2086,158 @@ const HSSP = {
                 metadata.split.checksums.previous = bufferDV.getUint32(84, true);
                 metadata.split.checksums.next = bufferDV.getUint32(88, true);
                 metadata.split.splitFileOffset = Number(bufferDV.getBigUint64(76, true));
+
+                metadata.comment = new TextDecoder().decode(bufferU8.subarray(96, 112)).split('\x00', '');
+
+                metadata.generator = new TextDecoder().decode(bufferU8.subarray(112, 128)).split('\x00', '');
+
+                const usedTDU8 = utdu8;
+                var offs = usedTDU8 ? 0 : 128;
+
+                for (var i = 0; i < fileCount; i++) {
+                    var file = [];
+                    file[2] = {};
+
+                    var innerOffs = 0;
+                    file[2].size = dataDV.getBigUint64(offs, true);
+                    offs += innerOffs + 8;
+
+                    var innerOffs = dataDV.getUint16(offs, true);
+                    file[0] = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 2, offs - (usedTDU8 ? 0 : 128) + 2 + innerOffs));
+                    offs += innerOffs + 2;
+
+                    innerOffs = dataDV.getUint16(offs, true);
+                    file[2].owner = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 2, offs - (usedTDU8 ? 0 : 128) + 2 + innerOffs));
+                    offs += innerOffs + 2;
+
+                    innerOffs = dataDV.getUint16(offs, true);
+                    file[2].group = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 2, offs - (usedTDU8 ? 0 : 128) + 2 + innerOffs));
+                    offs += innerOffs + 2;
+
+                    innerOffs = dataDV.getUint32(offs, true);
+                    file[2].webLink = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 4, offs - (usedTDU8 ? 0 : 128) + 4 + innerOffs));
+                    offs += innerOffs + 4;
+
+                    file[2].created = new Date((() => {
+                        var rt = 0;
+                        for (var i = 0; i < 6; i++) {
+                            rt += dataDV.getUint8(offs + i) * Math.pow(256, i);
+                        };
+                        return rt;
+                    })());
+                    offs += 6;
+                    file[2].changed = new Date((() => {
+                        var rt = 0;
+                        for (var i = 0; i < 6; i++) {
+                            rt += dataDV.getUint8(offs + i) * Math.pow(256, i);
+                        };
+                        return rt;
+                    })());
+                    offs += 6;
+                    file[2].opened = new Date((() => {
+                        var rt = 0;
+                        for (var i = 0; i < 6; i++) {
+                            rt += dataDV.getUint8(offs + i) * Math.pow(256, i);
+                        };
+                        return rt;
+                    })());
+                    offs += 6;
+
+                    var permissions = '';
+                    for (var j = 0; j < 9; j++) {
+                        permissions += (dataU8[offs - (usedTDU8 ? 0 : 128) + Math.floor(j / 8)] >> j % 8) & 1;
+                    };
+                    file[2].permissions = +parseInt(permissions, 2).toString(8);
+
+                    file[2].isFolder = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 1) & 1);
+                    file[2].hidden = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 2) & 1);
+                    file[2].system = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 3) & 1);
+                    file[2].enableBackup = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 4) & 1);
+                    file[2].forceBackup = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 5) & 1);
+                    file[2].readOnly = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 6) & 1);
+                    file[2].mainFile = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 7) & 1);
+                    offs += 2;
+
+                    metadata.files[file[0]] = file[2];
+                };
+                return metadata;
+            case 5: // v4: Uses flags
+                metadata.version = 5;
+                const inp = bufferU8.subarray(128, bufferU8.length);
+                metadata.hash.valid = true;
+                const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+                metadata.hash.given = bufferDV.getUint32(64, true);
+                metadata.hash.calculated = hash;
+                if (bufferDV.getUint32(64, true) !== hash) metadata.hash.valid = false;
+                const fileCount = bufferDV.getUint32(8, true);
+                bufferDV.getUint8(5).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
+                bufferDV.getUint8(6).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
+                bufferDV.getUint8(7).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
+                metadata.compression = false;
+                if (flags[1]) switch (new TextDecoder().decode(bufferU8.subarray(60, 64))) {
+                    case 'DFLT':
+                        metadata.compression = 'DEFLATE';
+                        break;
+
+                    case 'LZMA':
+                        metadata.compression = 'LZMA';
+                        break;
+
+                    default:
+                        metadata.compression = null;
+                        break;
+                };
+                metadata.password.correct = null;
+                var tempDataU8;
+                if (flags[0]) {
+                    metadata.password.correct = false;
+                    metadata.password.given.hash = CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex);
+                    metadata.password.given.clear = password;
+                    metadata.password.hash = Array.from(bufferU8.subarray(12, 44)).map(e => e.toString(16).length < 2 ? '0' + e.toString(16) : e.toString(16)).join('');
+                    if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) return metadata;
+                    metadata.password.correct = true;
+                    const iv = bufferU8.subarray(44, 60);
+                    const encrypted = bufferU8.subarray(128, buffer.byteLength);
+                    const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                        ciphertext: CryptoJS.lib.WordArray.create(encrypted),
+                        salt: CryptoJS.lib.WordArray.create(iv)
+                    }), CryptoJS.SHA256(password), {
+                        iv: CryptoJS.lib.WordArray.create(iv),
+                        padding: CryptoJS.pad.Pkcs7,
+                        mode: CryptoJS.mode.CBC
+                    });
+
+                    tempDataU8 = decrypted.toUint8Array();
+                };
+
+                if (flags[1]) switch (new TextDecoder().decode(bufferU8.subarray(60, 64))) {
+                    case 'DFLT':
+                        tempDataU8 = pako.inflate(tempDataU8 ?? inp);
+                        break;
+
+                    case 'LZMA':
+                        var decompressed = LZMA.decompress(tempDataU8 ?? inp);
+                        tempDataU8 = (typeof decompressed == 'string') ? new TextEncoder().encode(decompressed) : Uint8Array.from(decompressed);
+                        break;
+                };
+
+                var utdu8 = true;
+                const dataU8 = (() => {
+                    if ((tempDataU8 ?? true) === true) {
+                        utdu8 = false;
+                        return inp;
+                    } else return tempDataU8;
+                })();
+                const data = dataU8.buffer;
+                const dataDV = new DataView(data);
+
+                metadata.split.totalFileCount = Number(bufferDV.getBigUint64(68, true));
+                if (flags[2]) {
+                    metadata.split.id = bufferDV.getUint32(92, true);
+                    metadata.split.checksums.previous = bufferDV.getUint32(84, true);
+                    metadata.split.checksums.next = bufferDV.getUint32(88, true);
+                    metadata.split.splitFileOffset = Number(bufferDV.getBigUint64(76, true));
+                };
 
                 metadata.comment = new TextDecoder().decode(bufferU8.subarray(96, 112)).split('\x00', '');
 

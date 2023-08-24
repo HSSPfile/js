@@ -1175,7 +1175,7 @@ class Editor { // Can hold massive amounts of data in a single file
                     var fileStart = Buffer.alloc(size);
                     fileStart.write('HSSP', 0, 'utf8'); // Magic value :) | 4+0
                     fileStart.writeUint8(4, 4); // File standard version, see https://hssp.leox.dev/docs/versions | 1+4
-                    out.writeUint8(parseInt([
+                    fileStart.writeUint8(parseInt([
                         this.#pwd !== null, // F1: is encrypted
                         this.#compAlgo !== 'NONE', // F2: is compressed
                         true, // F3: is split
@@ -1185,7 +1185,7 @@ class Editor { // Can hold massive amounts of data in a single file
                         false, // F7: unallocated
                         false // F8: unallocated
                     ].map(b => +b).join(''), 2), 5); // Flags #1, see https://hssp.leox.dev/docs/flags | 1+5
-                    out.writeUint8(parseInt([
+                    fileStart.writeUint8(parseInt([
                         false, // F9: unallocated
                         false, // F10: unallocated
                         false, // F11: unallocated
@@ -1195,7 +1195,7 @@ class Editor { // Can hold massive amounts of data in a single file
                         false, // F15: unallocated
                         false // F16: unallocated
                     ].map(b => +b).join(''), 2), 6); // Flags #2, see https://hssp.leox.dev/docs/flags | 1+6
-                    out.writeUint8(parseInt([
+                    fileStart.writeUint8(parseInt([
                         false, // F17: unallocated
                         false, // F18: unallocated
                         false, // F19: unallocated
@@ -1660,7 +1660,7 @@ module.exports = {
                 return metadata;
 
             case 5: // v5: Uses flags
-                metadata.version = 4;
+                metadata.version = 5;
                 const inp = buffer.subarray(128, buffer.byteLength);
                 metadata.hash.valid = true;
                 const hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
