@@ -4,7 +4,7 @@ const compAlgos = { //> https://hssp.leox.dev/docs/compression/codes
 };
 
 const HSSP = {
-    release: '3.0.0',
+    release: '4.0.0',
 
     _internal: {
         typedArrayToBuffer: array => array.buffer.slice(array.byteOffset, array.byteLength + array.byteOffset),
@@ -22,7 +22,7 @@ const HSSP = {
         #compAlgo = 'NONE';
         #compLvl = 0;
         #comment = '';
-        #ver = 4;
+        #ver = 5;
         #idx = 0;
 
         /**
@@ -654,6 +654,184 @@ const HSSP = {
                             this.#files.push(file);
                         };
                     });
+                    return;
+                case 5: // v5: Uses flags
+                    const inp = bufferU8.subarray(128, bufferU8.length);
+                    const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+                    if (bufferDV.getUint32(64, true) !== hash) throw new Error('INVALID_CHECKSUM');
+                    const fileCount = bufferDV.getUint32(8, true);
+                    bufferDV.getUint8(5).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
+                    bufferDV.getUint8(6).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
+                    bufferDV.getUint8(7).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
+                    var tempDataU8;
+                    if (flags[0]) {
+                        if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) throw new Error('INVALID_PASSWORD');
+                        const iv = bufferU8.subarray(44, 60);
+                        const encrypted = bufferU8.subarray(128, buffer.byteLength);
+                        const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                            ciphertext: CryptoJS.lib.WordArray.create(encrypted),
+                            salt: CryptoJS.lib.WordArray.create(iv)
+                        }), CryptoJS.SHA256(password), {
+                            iv: CryptoJS.lib.WordArray.create(iv),
+                            padding: CryptoJS.pad.Pkcs7,
+                            mode: CryptoJS.mode.CBC
+                        });
+
+                        tempDataU8 = decrypted.toUint8Array();
+                    };
+
+                    if (flags[1]) switch (new TextDecoder().decode(bufferU8.subarray(60, 64))) {
+                        case 'DFLT':
+                            tempDataU8 = pako.inflate(tempDataU8 ?? inp);
+                            break;
+
+                        case 'LZMA':
+                            var decompressed = LZMA.decompress(tempDataU8 ?? inp);
+                            tempDataU8 = (typeof decompressed == 'string') ? new TextEncoder().encode(decompressed) : Uint8Array.from(decompressed);
+                            break;
+
+                        default:
+                            throw new Error('COMPRESSION_NOT_SUPPORTED');
+                    };
+
+                    var utdu8 = true;
+                    const dataU8 = (() => {
+                        if ((tempDataU8 ?? true) === true) {
+                            utdu8 = false;
+                            return inp;
+                        } else return tempDataU8;
+                    })();
+                    const data = dataU8.buffer;
+                    const dataDV = new DataView(data);
+
+                    const usedTDU8 = utdu8;
+                    var offs = usedTDU8 ? 0 : 128;
+
+                    const files = [];
+                    for (var i = 0; i < fileCount; i++) {
+                        var file = [];
+                        file[2] = {};
+
+                        var innerOffs = 0;
+                        file[1] = dataDV.getBigUint64(offs, true);
+                        file[2].size = file[1];
+                        offs += innerOffs + 8;
+
+                        var innerOffs = dataDV.getUint16(offs, true);
+                        file[0] = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 2, offs - (usedTDU8 ? 0 : 128) + 2 + innerOffs));
+                        offs += innerOffs + 2;
+
+                        innerOffs = dataDV.getUint16(offs, true);
+                        file[2].owner = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 2, offs - (usedTDU8 ? 0 : 128) + 2 + innerOffs));
+                        offs += innerOffs + 2;
+
+                        innerOffs = dataDV.getUint16(offs, true);
+                        file[2].group = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 2, offs - (usedTDU8 ? 0 : 128) + 2 + innerOffs));
+                        offs += innerOffs + 2;
+
+                        innerOffs = dataDV.getUint32(offs, true);
+                        file[2].webLink = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 4, offs - (usedTDU8 ? 0 : 128) + 4 + innerOffs));
+                        offs += innerOffs + 4;
+
+                        file[2].created = new Date((() => {
+                            var rt = 0;
+                            for (var i = 0; i < 6; i++) {
+                                rt += dataDV.getUint8(offs + i) * Math.pow(256, i);
+                            };
+                            return rt;
+                        })());
+                        offs += 6;
+                        file[2].changed = new Date((() => {
+                            var rt = 0;
+                            for (var i = 0; i < 6; i++) {
+                                rt += dataDV.getUint8(offs + i) * Math.pow(256, i);
+                            };
+                            return rt;
+                        })());
+                        offs += 6;
+                        file[2].opened = new Date((() => {
+                            var rt = 0;
+                            for (var i = 0; i < 6; i++) {
+                                rt += dataDV.getUint8(offs + i) * Math.pow(256, i);
+                            };
+                            return rt;
+                        })());
+                        offs += 6;
+
+                        var permissions = '';
+                        for (var j = 0; j < 9; j++) {
+                            permissions += (dataU8[offs - (usedTDU8 ? 0 : 128) + Math.floor(j / 8)] >> j % 8) & 1;
+                        };
+                        file[2].permissions = +parseInt(permissions, 2).toString(8);
+
+                        file[2].isFolder = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 1) & 1);
+                        file[2].hidden = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 2) & 1);
+                        file[2].system = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 3) & 1);
+                        file[2].enableBackup = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 4) & 1);
+                        file[2].forceBackup = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 5) & 1);
+                        file[2].readOnly = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 6) & 1);
+                        file[2].mainFile = !!((dataU8[offs - (usedTDU8 ? 0 : 128) + 1] >> 7) & 1);
+                        offs += 2;
+
+                        files.push(file);
+                    };
+
+                    if (flags[2]) {
+                        const splitFileOffset = Number(bufferDV.getBigUint64(76, true));
+                        if (splitFileOffset > 0) {
+                            const file = files.shift();
+
+                            const fileStart = offs - (usedTDU8 ? 0 : 128);
+                            offs += Number(file[1]) - splitFileOffset;
+                            const fileEnd = offs - (usedTDU8 ? 0 : 128);
+                            file[1] = dataU8.subarray(fileStart, fileEnd);
+
+                            var idx = this.#files.findIndex(file2 => file2[0] == file[0]);
+                            if (idx == -1) {
+                                file[1] = (() => {
+                                    var rt = new Uint8Array(splitFileOffset + file[1].length);
+                                    rt.set(file[1], splitFileOffset);
+                                    return rt;
+                                })();
+                                this.#files.push(file);
+                            } else {
+                                this.#files[idx][1] = (() => {
+                                    var rt = new Uint8Array(this.#files[idx][1].length);
+                                    rt.set(this.#files[idx][1], 0);
+                                    rt.set(file[1], splitFileOffset);
+                                    return rt;
+                                })();
+                            };
+                        };
+
+                        files.forEach((file) => {
+                            const fileStart = offs - (usedTDU8 ? 0 : 128);
+                            offs += Number(file[1]);
+                            const fileEnd = offs - (usedTDU8 ? 0 : 128);
+                            file[1] = dataU8.subarray(fileStart, fileEnd);
+
+                            if ((offs - (usedTDU8 ? 0 : 128)) > dataU8.byteLength) {
+                                var idx = this.#files.findIndex(file2 => file2[0] == file[0]);
+                                if (idx == -1) {
+                                    file[1] = (() => {
+                                        var rt = new Uint8Array(Number(file[2].size));
+                                        rt.set(file[1], 0);
+                                        return rt;
+                                    })();
+                                    this.#files.push(file);
+                                } else {
+                                    this.#files[idx][1] = (() => {
+                                        var rt = new Uint8Array(this.#files[idx][1].length);
+                                        rt.set(this.#files[idx][1], 0);
+                                        rt.set(file[1], 0);
+                                        return rt;
+                                    })();
+                                };
+                            } else {
+                                this.#files.push(file);
+                            };
+                        });
+                    };
                     return;
                 default:
                     throw new Error('VERSION_NOT_SUPPORTED');

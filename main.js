@@ -15,7 +15,7 @@ class Editor { // Can hold massive amounts of data in a single file
     #compAlgo = 'NONE';
     #compLvl = 0;
     #comment = '';
-    #ver = 4;
+    #ver = 5;
     #idx = 0;
 
     /**
@@ -174,7 +174,7 @@ class Editor { // Can hold massive amounts of data in a single file
      * @since 3.0.0/v4
      */
     set version(int) {
-        this.#ver = +int < 5 && 0 < +int ? +int : this.#ver;
+        this.#ver = +int < 6 && 0 < +int ? +int : this.#ver;
     }
 
     /**
