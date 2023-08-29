@@ -131,3 +131,6 @@ dist
 
 # GitHub
 .github
+
+# VSCode
+.vscode
