@@ -1,10 +1,10 @@
-const murmurhash = require('murmurhash-js');
-const crypto = require('crypto');
-const os = require('os');
-const lzma = require('lzma');
-const { deflate, inflate } = require('pako');
+var murmurhash = require('murmurhash-js');
+var crypto = require('crypto');
+var os = require('os');
+var lzma = require('lzma');
+var { deflate, inflate } = require('pako');
 
-const compAlgos = { //> https://hssp.leox.dev/docs/compression/codes
+var compAlgos = { //> https://hssp.leox.dev/docs/compression/codes
     'DEFLATE': 'DFLT',
     'LZMA': 'LZMA'
 };
@@ -116,7 +116,7 @@ class Editor { // Can hold massive amounts of data in a single file
     remove(name) {
         var idx = this.#files.findIndex(file => file[0] == name);
         if (idx == -1) throw new Error('FILE_NOT_FOUND');
-        const file = this.#files.splice(idx, 1);
+        var file = this.#files.splice(idx, 1);
         return {
             buffer: file[1],
             options: file[2]
@@ -222,16 +222,16 @@ class Editor { // Can hold massive amounts of data in a single file
         buffer = Buffer.from(buffer);
         password = `${password}`;
         if (buffer.subarray(0, 4).toString('utf8') == 'SFA\x00') { // v1: 0-4 SFA\x00, Uses 64B header
-            const inp = buffer.subarray(64, buffer.byteLength);
-            const hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
+            var inp = buffer.subarray(64, buffer.byteLength);
+            var hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
             if (buffer.readUint32LE(4) !== hash) throw new Error('INVALID_CHECKSUM');
-            const fileCount = buffer.readUint32LE(8);
+            var fileCount = buffer.readUint32LE(8);
             if (!buffer.subarray(12, 60).equals(Buffer.alloc(48).fill(0))) { // check if file is encrypted
                 if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) throw new Error('INVALID_PASSWORD');
-                const iv = buffer.subarray(44, 60);
-                const encrypted = buffer.subarray(64, buffer.byteLength);
-                const decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
-                const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+                var iv = buffer.subarray(44, 60);
+                var encrypted = buffer.subarray(64, buffer.byteLength);
+                var decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
+                var decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
                 decrypted.copy(buffer, 64);
             };
 
@@ -239,9 +239,9 @@ class Editor { // Can hold massive amounts of data in a single file
             var index = buffer.readUint32LE(60);
             this.#idx = index;
             for (var i = 0; i < fileCount; i++) {
-                const nameLen = buffer.readUint16LE(offs + 8);
-                const name = buffer.subarray(offs + 10, offs + 10 + nameLen).toString('utf8');
-                const fileSize = Number(buffer.readBigUint64LE(offs));
+                var nameLen = buffer.readUint16LE(offs + 8);
+                var name = buffer.subarray(offs + 10, offs + 10 + nameLen).toString('utf8');
+                var fileSize = Number(buffer.readBigUint64LE(offs));
                 this.#files.push([name, buffer.subarray(offs + 10 + nameLen, offs + 10 + nameLen + fileSize), {
                     owner: '',
                     group: '',
@@ -265,16 +265,16 @@ class Editor { // Can hold massive amounts of data in a single file
         };
 
         if (buffer.readUint32LE(4) == murmurhash.murmur3(buffer.subarray(64, buffer.byteLength).toString('utf8'), 0x31082007) && !buffer.subarray(64, 128).equals(Buffer.alloc(64).fill(0))) { // v2: Uses 64B header
-            const inp = buffer.subarray(64, buffer.byteLength);
-            const hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
+            var inp = buffer.subarray(64, buffer.byteLength);
+            var hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
             if (buffer.readUint32LE(4) !== hash) throw new Error('INVALID_CHECKSUM');
-            const fileCount = buffer.readUint32LE(8);
+            var fileCount = buffer.readUint32LE(8);
             if (!buffer.subarray(12, 60).equals(Buffer.alloc(48).fill(0))) { // check if file is encrypted
                 if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) throw new Error('INVALID_PASSWORD');
-                const iv = buffer.subarray(44, 60);
-                const encrypted = buffer.subarray(64, buffer.byteLength);
-                const decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
-                const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+                var iv = buffer.subarray(44, 60);
+                var encrypted = buffer.subarray(64, buffer.byteLength);
+                var decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
+                var decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
                 decrypted.copy(buffer, 64);
             };
 
@@ -282,9 +282,9 @@ class Editor { // Can hold massive amounts of data in a single file
             var index = buffer.readUint32LE(60);
             this.#idx = index;
             for (var i = 0; i < fileCount; i++) {
-                const nameLen = buffer.readUint16LE(offs + 8);
-                const name = buffer.subarray(offs + 10, offs + 10 + nameLen).toString('utf8');
-                const fileSize = Number(buffer.readBigUint64LE(offs));
+                var nameLen = buffer.readUint16LE(offs + 8);
+                var name = buffer.subarray(offs + 10, offs + 10 + nameLen).toString('utf8');
+                var fileSize = Number(buffer.readBigUint64LE(offs));
                 this.#files.push([name, buffer.subarray(offs + 10 + nameLen, offs + 10 + nameLen + fileSize), {
                     owner: '',
                     group: '',
@@ -308,16 +308,16 @@ class Editor { // Can hold massive amounts of data in a single file
         };
 
         if (buffer.subarray(64, 128).equals(Buffer.alloc(64).fill(0))) { // v3: Uses 128B header
-            const inp = buffer.subarray(128, buffer.byteLength);
-            const hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
+            var inp = buffer.subarray(128, buffer.byteLength);
+            var hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
             if (buffer.readUint32LE(4) !== hash) throw new Error('INVALID_CHECKSUM');
-            const fileCount = buffer.readUint32LE(8);
+            var fileCount = buffer.readUint32LE(8);
             if (!buffer.subarray(12, 60).equals(Buffer.alloc(48).fill(0))) { // check if file is encrypted
                 if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) throw new Error('INVALID_PASSWORD');
-                const iv = buffer.subarray(44, 60);
-                const encrypted = buffer.subarray(128, buffer.byteLength);
-                const decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
-                const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+                var iv = buffer.subarray(44, 60);
+                var encrypted = buffer.subarray(128, buffer.byteLength);
+                var decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
+                var decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
                 decrypted.copy(buffer, 128);
             };
 
@@ -325,9 +325,9 @@ class Editor { // Can hold massive amounts of data in a single file
             var index = buffer.readUint32LE(60);
             this.#idx = index;
             for (var i = 0; i < fileCount; i++) {
-                const nameLen = buffer.readUint16LE(offs + 8);
-                const name = buffer.subarray(offs + 10, offs + 10 + nameLen).toString('utf8');
-                const fileSize = Number(buffer.readBigUint64LE(offs));
+                var nameLen = buffer.readUint16LE(offs + 8);
+                var name = buffer.subarray(offs + 10, offs + 10 + nameLen).toString('utf8');
+                var fileSize = Number(buffer.readBigUint64LE(offs));
                 this.#files.push([name, buffer.subarray(offs + 10 + nameLen, offs + 10 + nameLen + fileSize), {
                     owner: '',
                     group: '',
@@ -352,16 +352,16 @@ class Editor { // Can hold massive amounts of data in a single file
 
         switch (buffer.readUint8(4)) {
             case 4: // v4: Uses 128B header completely + indexing
-                const inp = buffer.subarray(128, buffer.byteLength);
-                const hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
+                var inp = buffer.subarray(128, buffer.byteLength);
+                var hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
                 if (buffer.readUint32LE(64) !== hash) throw new Error('INVALID_CHECKSUM');
-                const fileCount = buffer.readUint32LE(8);
+                var fileCount = buffer.readUint32LE(8);
                 if (!buffer.subarray(12, 60).equals(Buffer.alloc(48).fill(0))) { // check if file is encrypted
                     if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) throw new Error('INVALID_PASSWORD');
-                    const iv = buffer.subarray(44, 60);
-                    const encrypted = buffer.subarray(128, buffer.byteLength);
-                    const decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
-                    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+                    var iv = buffer.subarray(44, 60);
+                    var encrypted = buffer.subarray(128, buffer.byteLength);
+                    var decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
+                    var decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
                     decrypted.copy(buffer, 128);
                 };
 
@@ -383,7 +383,7 @@ class Editor { // Can hold massive amounts of data in a single file
                         throw new Error('COMPRESSION_NOT_SUPPORTED');
                 };
 
-                const files = [];
+                var files = [];
                 for (var i = 0; i < fileCount; i++) {
                     var file = [];
                     file[2] = {};
@@ -432,13 +432,13 @@ class Editor { // Can hold massive amounts of data in a single file
                     files.push(file);
                 };
 
-                const splitFileOffset = Number(buffer.readBigUint64LE(76));
+                var splitFileOffset = Number(buffer.readBigUint64LE(76));
                 if (splitFileOffset > 0) {
-                    const file = files.shift();
+                    var file = files.shift();
 
-                    const fileStart = offs;
+                    var fileStart = offs;
                     offs += Number(file[1]) - splitFileOffset;
-                    const fileEnd = offs;
+                    var fileEnd = offs;
                     file[1] = buffer.subarray(fileStart, fileEnd);
 
                     var idx = this.#files.findIndex(file2 => file2[0] == file[0]);
@@ -451,9 +451,9 @@ class Editor { // Can hold massive amounts of data in a single file
                 };
 
                 files.forEach((file) => {
-                    const fileStart = offs;
+                    var fileStart = offs;
                     offs += Number(file[1]);
-                    const fileEnd = offs;
+                    var fileEnd = offs;
                     file[1] = buffer.subarray(fileStart, fileEnd);
 
                     if (offs > buffer.byteLength) {
@@ -471,20 +471,20 @@ class Editor { // Can hold massive amounts of data in a single file
                 return;
 
             case 5: // v5: Uses flags
-                const inp = buffer.subarray(128, buffer.byteLength);
-                const hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
+                var inp = buffer.subarray(128, buffer.byteLength);
+                var hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
                 if (buffer.readUint32LE(64) !== hash) throw new Error('INVALID_CHECKSUM');
-                const fileCount = buffer.readUint32LE(8);
-                const flags = [];
+                var fileCount = buffer.readUint32LE(8);
+                var flags = [];
                 buffer.readUint8(5).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
                 buffer.readUint8(6).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
                 buffer.readUint8(7).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
                 if (flags[0]) { // check if file is encrypted
                     if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) throw new Error('INVALID_PASSWORD');
-                    const iv = buffer.subarray(44, 60);
-                    const encrypted = buffer.subarray(128, buffer.byteLength);
-                    const decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
-                    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+                    var iv = buffer.subarray(44, 60);
+                    var encrypted = buffer.subarray(128, buffer.byteLength);
+                    var decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
+                    var decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
                     decrypted.copy(buffer, 128);
                 };
 
@@ -503,7 +503,7 @@ class Editor { // Can hold massive amounts of data in a single file
                         throw new Error('COMPRESSION_NOT_SUPPORTED');
                 };
 
-                const files = [];
+                var files = [];
                 for (var i = 0; i < fileCount; i++) {
                     var file = [];
                     file[2] = {};
@@ -553,13 +553,13 @@ class Editor { // Can hold massive amounts of data in a single file
                 };
 
                 if (flags[2]) {
-                    const splitFileOffset = Number(buffer.readBigUint64LE(76));
+                    var splitFileOffset = Number(buffer.readBigUint64LE(76));
                     if (splitFileOffset > 0) {
-                        const file = files.shift();
+                        var file = files.shift();
 
-                        const fileStart = offs;
+                        var fileStart = offs;
                         offs += Number(file[1]) - splitFileOffset;
-                        const fileEnd = offs;
+                        var fileEnd = offs;
                         file[1] = buffer.subarray(fileStart, fileEnd);
 
                         var idx = this.#files.findIndex(file2 => file2[0] == file[0]);
@@ -572,9 +572,9 @@ class Editor { // Can hold massive amounts of data in a single file
                     };
 
                     files.forEach((file) => {
-                        const fileStart = offs;
+                        var fileStart = offs;
                         offs += Number(file[1]);
-                        const fileEnd = offs;
+                        var fileEnd = offs;
                         file[1] = buffer.subarray(fileStart, fileEnd);
 
                         if (offs > buffer.byteLength) {
@@ -635,13 +635,13 @@ class Editor { // Can hold massive amounts of data in a single file
                 });
                 var pack = out.subarray(64, size);
                 if (this.#pwd !== null) {
-                    const iv = crypto.randomBytes(16);
-                    const cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
-                    const encrypted = Buffer.concat([cipher.update(pack), cipher.final()]);
+                    var iv = crypto.randomBytes(16);
+                    var cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
+                    var encrypted = Buffer.concat([cipher.update(pack), cipher.final()]);
                     iv.copy(out, 44);
                     encrypted.copy(out, 64);
                     crypto.createHash('sha256').update(crypto.createHash('sha256').update(this.#pwd).digest()).digest().copy(out, 12);
-                    const eOut = Buffer.concat([out.subarray(0, 64), encrypted]);
+                    var eOut = Buffer.concat([out.subarray(0, 64), encrypted]);
                     eOut.writeUint32LE(murmurhash.murmur3(encrypted.toString('utf8'), 0x31082007), 4);
                     return eOut;
                 };
@@ -674,13 +674,13 @@ class Editor { // Can hold massive amounts of data in a single file
                 });
                 var pack = out.subarray(64, size);
                 if (this.#pwd !== null) {
-                    const iv = crypto.randomBytes(16);
-                    const cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
-                    const encrypted = Buffer.concat([cipher.update(pack), cipher.final()]);
+                    var iv = crypto.randomBytes(16);
+                    var cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
+                    var encrypted = Buffer.concat([cipher.update(pack), cipher.final()]);
                     iv.copy(out, 44);
                     encrypted.copy(out, 64);
                     crypto.createHash('sha256').update(crypto.createHash('sha256').update(this.#pwd).digest()).digest().copy(out, 12);
-                    const eOut = Buffer.concat([out.subarray(0, 64), encrypted]);
+                    var eOut = Buffer.concat([out.subarray(0, 64), encrypted]);
                     eOut.writeUint32LE(murmurhash.murmur3(encrypted.toString('utf8'), 0x31082007), 4);
                     return eOut;
                 };
@@ -714,13 +714,13 @@ class Editor { // Can hold massive amounts of data in a single file
                 });
                 var pack = out.subarray(128, size);
                 if (this.#pwd !== null) {
-                    const iv = crypto.randomBytes(16);
-                    const cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
-                    const encrypted = Buffer.concat([cipher.update(pack), cipher.final()]);
+                    var iv = crypto.randomBytes(16);
+                    var cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
+                    var encrypted = Buffer.concat([cipher.update(pack), cipher.final()]);
                     iv.copy(out, 44);
                     encrypted.copy(out, 128);
                     crypto.createHash('sha256').update(crypto.createHash('sha256').update(this.#pwd).digest()).digest().copy(out, 12);
-                    const eOut = Buffer.concat([out.subarray(0, 128), encrypted]);
+                    var eOut = Buffer.concat([out.subarray(0, 128), encrypted]);
                     eOut.writeUint32LE(murmurhash.murmur3(encrypted.toString('utf8'), 0x31082007), 4);
                     return eOut;
                 };
@@ -754,7 +754,7 @@ class Editor { // Can hold massive amounts of data in a single file
                 out.write(this.#compAlgo, 60, 'utf8'); // Used compression algorithm, 0 if not set | 4+60
                 // this file is not split | 28+68
                 out.write(this.#comment.slice(0, 16), 96, 'utf8'); // Comment | 16+96
-                out.write('hssp 4.0.0 @ npm', 112, 'utf8'); // Used generator | 16+112
+                out.write('hssp 4.0.1 @ npm', 112, 'utf8'); // Used generator | 16+112
 
                 var offs = 128; // Start
 
@@ -830,13 +830,13 @@ class Editor { // Can hold massive amounts of data in a single file
                 pack = outBuf.subarray(128, size);
 
                 if (this.#pwd !== null) {
-                    const iv = crypto.randomBytes(16);
-                    const cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
-                    const encrypted = Buffer.concat([cipher.update(pack), cipher.final()]);
+                    var iv = crypto.randomBytes(16);
+                    var cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
+                    var encrypted = Buffer.concat([cipher.update(pack), cipher.final()]);
                     iv.copy(outBuf, 44);
                     encrypted.copy(outBuf, 128);
                     crypto.createHash('sha256').update(crypto.createHash('sha256').update(this.#pwd).digest()).digest().copy(outBuf, 12);
-                    const eOut = Buffer.concat([outBuf.subarray(0, 128), encrypted]);
+                    var eOut = Buffer.concat([outBuf.subarray(0, 128), encrypted]);
                     eOut.writeUint32LE(murmurhash.murmur3(encrypted.toString('utf8'), 0x31082007), 64);
                     return eOut;
                 };
@@ -899,7 +899,7 @@ class Editor { // Can hold massive amounts of data in a single file
                 out.write(this.#compAlgo, 60, 'utf8'); // Used compression algorithm, NONE if not set | 4+60
                 // this file is not split | 28+68
                 out.write(this.#comment.slice(0, 16), 96, 'utf8'); // Comment | 16+96
-                out.write('hssp 4.0.0 @ npm', 112, 'utf8'); // Used generator | 16+112
+                out.write('hssp 4.0.1 @ npm', 112, 'utf8'); // Used generator | 16+112
 
                 var offs = 128; // Start
 
@@ -975,13 +975,13 @@ class Editor { // Can hold massive amounts of data in a single file
                 pack = outBuf.subarray(128, size);
 
                 if (this.#pwd !== null) {
-                    const iv = crypto.randomBytes(16);
-                    const cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
-                    const encrypted = Buffer.concat([cipher.update(pack), cipher.final()]);
+                    var iv = crypto.randomBytes(16);
+                    var cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
+                    var encrypted = Buffer.concat([cipher.update(pack), cipher.final()]);
                     iv.copy(outBuf, 44);
                     encrypted.copy(outBuf, 128);
                     crypto.createHash('sha256').update(crypto.createHash('sha256').update(this.#pwd).digest()).digest().copy(outBuf, 12);
-                    const eOut = Buffer.concat([outBuf.subarray(0, 128), encrypted]);
+                    var eOut = Buffer.concat([outBuf.subarray(0, 128), encrypted]);
                     eOut.writeUint32LE(murmurhash.murmur3(encrypted.toString('utf8'), 0x31082007), 64);
                     return eOut;
                 };
@@ -1025,9 +1025,9 @@ class Editor { // Can hold massive amounts of data in a single file
         });
 
         var globalOffs = 0;
-        const out = [];
+        var out = [];
 
-        const avgSize = Math.floor(bufferPool.byteLength / count);
+        var avgSize = Math.floor(bufferPool.byteLength / count);
 
         for (var i = 0; i < count; i++) {
             var filesInBuffer = [];
@@ -1075,7 +1075,7 @@ class Editor { // Can hold massive amounts of data in a single file
                     fileStart.writeUint32LE(i, 92); // File ID of this package | 4+92
 
                     fileStart.write(this.#comment.slice(0, 16), 96, 'utf8'); // Comment | 16+96
-                    fileStart.write('hssp 4.0.0 @ npm', 112, 'utf8'); // Used generator | 16+112
+                    fileStart.write('hssp 4.0.1 @ npm', 112, 'utf8'); // Used generator | 16+112
 
                     var offs = 128; // Start
 
@@ -1148,13 +1148,13 @@ class Editor { // Can hold massive amounts of data in a single file
                     pack = outBuf.subarray(128, size);
 
                     if (this.#pwd !== null) {
-                        const iv = crypto.randomBytes(16);
-                        const cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
-                        const encrypted = Buffer.concat([cipher.update(pack), cipher.final()]);
+                        var iv = crypto.randomBytes(16);
+                        var cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
+                        var encrypted = Buffer.concat([cipher.update(pack), cipher.final()]);
                         iv.copy(outBuf, 44);
                         encrypted.copy(outBuf, 128);
                         crypto.createHash('sha256').update(crypto.createHash('sha256').update(this.#pwd).digest()).digest().copy(outBuf, 12);
-                        const eOut = Buffer.concat([outBuf.subarray(0, 128), encrypted]);
+                        var eOut = Buffer.concat([outBuf.subarray(0, 128), encrypted]);
                         eOut.writeUint32LE(murmurhash.murmur3(encrypted.toString('utf8'), 0x31082007), 64);
                         out[i] = eOut;
                     } else {
@@ -1223,7 +1223,7 @@ class Editor { // Can hold massive amounts of data in a single file
                     fileStart.writeUint32LE(i, 92); // File ID of this package | 4+92
 
                     fileStart.write(this.#comment.slice(0, 16), 96, 'utf8'); // Comment | 16+96
-                    fileStart.write('hssp 4.0.0 @ npm', 112, 'utf8'); // Used generator | 16+112
+                    fileStart.write('hssp 4.0.1 @ npm', 112, 'utf8'); // Used generator | 16+112
 
                     var offs = 128; // Start
 
@@ -1296,13 +1296,13 @@ class Editor { // Can hold massive amounts of data in a single file
                     pack = outBuf.subarray(128, size);
 
                     if (this.#pwd !== null) {
-                        const iv = crypto.randomBytes(16);
-                        const cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
-                        const encrypted = Buffer.concat([cipher.update(pack), cipher.final()]);
+                        var iv = crypto.randomBytes(16);
+                        var cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
+                        var encrypted = Buffer.concat([cipher.update(pack), cipher.final()]);
                         iv.copy(outBuf, 44);
                         encrypted.copy(outBuf, 128);
                         crypto.createHash('sha256').update(crypto.createHash('sha256').update(this.#pwd).digest()).digest().copy(outBuf, 12);
-                        const eOut = Buffer.concat([outBuf.subarray(0, 128), encrypted]);
+                        var eOut = Buffer.concat([outBuf.subarray(0, 128), encrypted]);
                         eOut.writeUint32LE(murmurhash.murmur3(encrypted.toString('utf8'), 0x31082007), 64);
                         out[i] = eOut;
                     } else {
@@ -1321,7 +1321,7 @@ class Editor { // Can hold massive amounts of data in a single file
     }
 };
 module.exports = {
-    release: '4.0.0',
+    release: '4.0.1',
     Editor,
 
     /**
@@ -1380,13 +1380,13 @@ module.exports = {
 
         if (buffer.subarray(0, 4).toString('utf8') == 'SFA\x00') { // v1: 0-4 SFA\x00, Uses 64B header
             metadata.version = 1;
-            const inp = buffer.subarray(64, buffer.byteLength);
+            var inp = buffer.subarray(64, buffer.byteLength);
             metadata.hash.valid = true;
-            const hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
+            var hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
             metadata.hash.given = buffer.readUint32LE(4);
             metadata.hash.calculated = hash;
             if (buffer.readUint32LE(4) !== hash) metadata.hash.valid = false;
-            const fileCount = buffer.readUint32LE(8);
+            var fileCount = buffer.readUint32LE(8);
 
             metadata.compression = false;
 
@@ -1398,19 +1398,19 @@ module.exports = {
                 metadata.password.hash = buffer.subarray(12, 44).toString('hex');
                 if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) return metadata;
                 metadata.password.correct = true;
-                const iv = buffer.subarray(44, 60);
-                const encrypted = buffer.subarray(64, buffer.byteLength);
-                const decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
-                const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+                var iv = buffer.subarray(44, 60);
+                var encrypted = buffer.subarray(64, buffer.byteLength);
+                var decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
+                var decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
                 decrypted.copy(buffer, 64);
             };
 
             var offs = 64;
             var index = buffer.readUint32LE(60);
             for (var i = 0; i < fileCount; i++) {
-                const nameLen = buffer.readUint16LE(offs + 8);
-                const name = buffer.subarray(offs + 10, offs + 10 + nameLen).toString('utf8');
-                const fileSize = buffer.readBigUint64LE(offs);
+                var nameLen = buffer.readUint16LE(offs + 8);
+                var name = buffer.subarray(offs + 10, offs + 10 + nameLen).toString('utf8');
+                var fileSize = buffer.readBigUint64LE(offs);
                 metadata.files[name] = {
                     size: fileSize,
                     owner: '',
@@ -1436,13 +1436,13 @@ module.exports = {
 
         if (buffer.readUint32LE(4) == murmurhash.murmur3(buffer.subarray(64, buffer.byteLength).toString('utf8'), 0x31082007) && !buffer.subarray(64, 128).equals(Buffer.alloc(64).fill(0))) { // v2: Uses 64B header
             metadata.version = 2;
-            const inp = buffer.subarray(64, buffer.byteLength);
+            var inp = buffer.subarray(64, buffer.byteLength);
             metadata.hash.valid = true;
-            const hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
+            var hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
             metadata.hash.given = buffer.readUint32LE(4);
             metadata.hash.calculated = hash;
             if (buffer.readUint32LE(4) !== hash) metadata.hash.valid = false;
-            const fileCount = buffer.readUint32LE(8);
+            var fileCount = buffer.readUint32LE(8);
 
             metadata.compression = false;
 
@@ -1454,19 +1454,19 @@ module.exports = {
                 metadata.password.hash = buffer.subarray(12, 44).toString('hex');
                 if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) return metadata;
                 metadata.password.correct = true;
-                const iv = buffer.subarray(44, 60);
-                const encrypted = buffer.subarray(64, buffer.byteLength);
-                const decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
-                const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+                var iv = buffer.subarray(44, 60);
+                var encrypted = buffer.subarray(64, buffer.byteLength);
+                var decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
+                var decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
                 decrypted.copy(buffer, 64);
             };
 
             var offs = 64;
             var index = buffer.readUint32LE(60);
             for (var i = 0; i < fileCount; i++) {
-                const nameLen = buffer.readUint16LE(offs + 8);
-                const name = buffer.subarray(offs + 10, offs + 10 + nameLen).toString('utf8');
-                const fileSize = buffer.readBigUint64LE(offs);
+                var nameLen = buffer.readUint16LE(offs + 8);
+                var name = buffer.subarray(offs + 10, offs + 10 + nameLen).toString('utf8');
+                var fileSize = buffer.readBigUint64LE(offs);
                 metadata.files[name] = {
                     size: fileSize,
                     owner: '',
@@ -1492,13 +1492,13 @@ module.exports = {
 
         if (buffer.subarray(64, 128).equals(Buffer.alloc(64).fill(0))) { // v3: Uses 128B header
             metadata.version = 3;
-            const inp = buffer.subarray(128, buffer.byteLength);
+            var inp = buffer.subarray(128, buffer.byteLength);
             metadata.hash.valid = true;
-            const hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
+            var hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
             metadata.hash.given = buffer.readUint32LE(4);
             metadata.hash.calculated = hash;
             if (buffer.readUint32LE(4) !== hash) metadata.hash.valid = false;
-            const fileCount = buffer.readUint32LE(8);
+            var fileCount = buffer.readUint32LE(8);
 
             metadata.compression = false;
 
@@ -1510,19 +1510,19 @@ module.exports = {
                 metadata.password.hash = buffer.subarray(12, 44).toString('hex');
                 if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) return metadata;
                 metadata.password.correct = true;
-                const iv = buffer.subarray(44, 60);
-                const encrypted = buffer.subarray(128, buffer.byteLength);
-                const decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
-                const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+                var iv = buffer.subarray(44, 60);
+                var encrypted = buffer.subarray(128, buffer.byteLength);
+                var decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
+                var decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
                 decrypted.copy(buffer, 128);
             };
 
             var offs = 128;
             var index = buffer.readUint32LE(60);
             for (var i = 0; i < fileCount; i++) {
-                const nameLen = buffer.readUint16LE(offs + 8);
-                const name = buffer.subarray(offs + 10, offs + 10 + nameLen).toString('utf8');
-                const fileSize = buffer.readBigUint64LE(offs);
+                var nameLen = buffer.readUint16LE(offs + 8);
+                var name = buffer.subarray(offs + 10, offs + 10 + nameLen).toString('utf8');
+                var fileSize = buffer.readBigUint64LE(offs);
                 metadata.files[name] = {
                     size: fileSize,
                     owner: '',
@@ -1549,13 +1549,13 @@ module.exports = {
         switch (buffer.readUint8(4)) {
             case 4: // v4: Uses 128B header completely + indexing
                 metadata.version = 4;
-                const inp = buffer.subarray(128, buffer.byteLength);
+                var inp = buffer.subarray(128, buffer.byteLength);
                 metadata.hash.valid = true;
-                const hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
+                var hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
                 metadata.hash.given = buffer.readUint32LE(64);
                 metadata.hash.calculated = hash;
                 if (buffer.readUint32LE(4) !== hash) metadata.hash.valid = false;
-                const fileCount = buffer.readUint32LE(8);
+                var fileCount = buffer.readUint32LE(8);
 
                 switch (buffer.toString('utf8', 60, 64)) {
                     case 'DFLT':
@@ -1583,10 +1583,10 @@ module.exports = {
                     metadata.password.hash = buffer.subarray(12, 44).toString('hex');
                     if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) return metadata;
                     metadata.password.correct = true;
-                    const iv = buffer.subarray(44, 60);
-                    const encrypted = buffer.subarray(128, buffer.byteLength);
-                    const decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
-                    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+                    var iv = buffer.subarray(44, 60);
+                    var encrypted = buffer.subarray(128, buffer.byteLength);
+                    var decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
+                    var decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
                     decrypted.copy(buffer, 128);
                 };
 
@@ -1661,14 +1661,14 @@ module.exports = {
 
             case 5: // v5: Uses flags
                 metadata.version = 5;
-                const inp = buffer.subarray(128, buffer.byteLength);
+                var inp = buffer.subarray(128, buffer.byteLength);
                 metadata.hash.valid = true;
-                const hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
+                var hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
                 metadata.hash.given = buffer.readUint32LE(64);
                 metadata.hash.calculated = hash;
                 if (buffer.readUint32LE(4) !== hash) metadata.hash.valid = false;
-                const fileCount = buffer.readUint32LE(8);
-                const flags = [];
+                var fileCount = buffer.readUint32LE(8);
+                var flags = [];
                 buffer.readUint8(5).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
                 buffer.readUint8(6).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
                 buffer.readUint8(7).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
@@ -1695,10 +1695,10 @@ module.exports = {
                     metadata.password.hash = buffer.subarray(12, 44).toString('hex');
                     if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) return metadata;
                     metadata.password.correct = true;
-                    const iv = buffer.subarray(44, 60);
-                    const encrypted = buffer.subarray(128, buffer.byteLength);
-                    const decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
-                    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+                    var iv = buffer.subarray(44, 60);
+                    var encrypted = buffer.subarray(128, buffer.byteLength);
+                    var decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
+                    var decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
                     decrypted.copy(buffer, 128);
                 };
 

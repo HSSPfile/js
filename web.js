@@ -1,10 +1,10 @@
-const compAlgos = { //> https://hssp.leox.dev/docs/compression/codes
+var compAlgos = { //> https://hssp.leox.dev/docs/compression/codes
     'DEFLATE': 'DFLT',
     'LZMA': 'LZMA'
 };
 
-const HSSP = {
-    release: '4.0.0',
+var HSSP = {
+    release: '4.0.1',
 
     _internal: {
         typedArrayToBuffer: array => array.buffer.slice(array.byteOffset, array.byteLength + array.byteOffset),
@@ -123,7 +123,7 @@ const HSSP = {
         remove(name) {
             var idx = this.#files.findIndex(file => file[0] == name);
             if (idx == -1) throw new Error('FILE_NOT_FOUND');
-            const file = this.#files.splice(idx, 1)[0];
+            var file = this.#files.splice(idx, 1)[0];
             return {
                 buffer: HSSP._internal.typedArrayToBuffer(file[1]),
                 options: file[2]
@@ -231,19 +231,19 @@ const HSSP = {
             if (buffer.buffer instanceof ArrayBuffer) {
                 buffer = buffer.buffer;
             };
-            const bufferU8 = new Uint8Array(buffer);
-            const bufferDV = new DataView(buffer);
+            var bufferU8 = new Uint8Array(buffer);
+            var bufferDV = new DataView(buffer);
 
             if (new TextDecoder().decode(bufferU8.subarray(0, 4)) == 'SFA\x00') { // v1: 0-4 SFA\x00, Uses 64B header
-                const inp = bufferU8.subarray(64, bufferU8.length);
-                const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
-                const inpDV = new DataView(inp.buffer);
+                var inp = bufferU8.subarray(64, bufferU8.length);
+                var hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+                var inpDV = new DataView(inp.buffer);
                 if (inpDV.getUint32(4, true) !== hash) throw new Error('INVALID_CHECKSUM');
-                const fileCount = bufferDV.getUint32(8, true);
+                var fileCount = bufferDV.getUint32(8, true);
                 var tempDataU8;
                 if ((() => {
-                    const start = 12;
-                    const end = 60;
+                    var start = 12;
+                    var end = 60;
 
                     var rt = 0;
 
@@ -254,9 +254,9 @@ const HSSP = {
                     return rt !== 0;
                 })()) {
                     if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) throw new Error('INVALID_PASSWORD');
-                    const iv = bufferU8.subarray(44, 60);
-                    const encrypted = bufferU8.subarray(64, buffer.byteLength);
-                    const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                    var iv = bufferU8.subarray(44, 60);
+                    var encrypted = bufferU8.subarray(64, buffer.byteLength);
+                    var decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
                         ciphertext: CryptoJS.lib.WordArray.create(encrypted),
                         salt: CryptoJS.lib.WordArray.create(iv)
                     }), CryptoJS.SHA256(password), {
@@ -269,23 +269,23 @@ const HSSP = {
                 };
 
                 var utdu8 = true;
-                const dataU8 = (() => {
+                var dataU8 = (() => {
                     if ((tempDataU8 ?? true) === true) {
                         utdu8 = false;
                         return inp;
                     } else return tempDataU8;
                 })();
-                const data = dataU8.buffer;
-                const dataDV = new DataView(data);
+                var data = dataU8.buffer;
+                var dataDV = new DataView(data);
 
-                const usedTDU8 = utdu8;
+                var usedTDU8 = utdu8;
                 var offs = usedTDU8 ? 0 : 64;
                 var index = bufferDV.getUint32(60, true);
                 this.#idx = index;
                 for (var i = 0; i < fileCount; i++) {
-                    const nameLen = dataDV.getUint16(offs + 8, true);
-                    const name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 64) + 10, offs - (usedTDU8 ? 0 : 64) + 10 + nameLen));
-                    const fileSize = Number(dataDV.getBigUint64(offs, true));
+                    var nameLen = dataDV.getUint16(offs + 8, true);
+                    var name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 64) + 10, offs - (usedTDU8 ? 0 : 64) + 10 + nameLen));
+                    var fileSize = Number(dataDV.getBigUint64(offs, true));
                     this.#files.push([name, dataU8.subarray(offs - (usedTDU8 ? 0 : 64) + 10 + nameLen, offs - (usedTDU8 ? 0 : 64) + 10 + nameLen + fileSize), {
                         owner: '',
                         group: '',
@@ -309,15 +309,15 @@ const HSSP = {
             };
 
             if (murmurhash3_32_gc(new TextDecoder().decode(bufferU8.subarray(64, bufferU8.length)), 0x31082007) == bufferDV.getUint32(4, true)) { // v2: Uses 64B header
-                const inp = bufferU8.subarray(64, bufferU8.length);
-                const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
-                const inpDV = new DataView(inp.buffer);
+                var inp = bufferU8.subarray(64, bufferU8.length);
+                var hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+                var inpDV = new DataView(inp.buffer);
                 if (inpDV.getUint32(4, true) !== hash) throw new Error('INVALID_CHECKSUM');
-                const fileCount = bufferDV.getUint32(8, true);
+                var fileCount = bufferDV.getUint32(8, true);
                 var tempDataU8;
                 if ((() => {
-                    const start = 12;
-                    const end = 60;
+                    var start = 12;
+                    var end = 60;
 
                     var rt = 0;
 
@@ -328,9 +328,9 @@ const HSSP = {
                     return rt !== 0;
                 })()) {
                     if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) throw new Error('INVALID_PASSWORD');
-                    const iv = bufferU8.subarray(44, 60);
-                    const encrypted = bufferU8.subarray(64, buffer.byteLength);
-                    const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                    var iv = bufferU8.subarray(44, 60);
+                    var encrypted = bufferU8.subarray(64, buffer.byteLength);
+                    var decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
                         ciphertext: CryptoJS.lib.WordArray.create(encrypted),
                         salt: CryptoJS.lib.WordArray.create(iv)
                     }), CryptoJS.SHA256(password), {
@@ -343,23 +343,23 @@ const HSSP = {
                 };
 
                 var utdu8 = true;
-                const dataU8 = (() => {
+                var dataU8 = (() => {
                     if ((tempDataU8 ?? true) === true) {
                         utdu8 = false;
                         return inp;
                     } else return tempDataU8;
                 })();
-                const data = dataU8.buffer;
-                const dataDV = new DataView(data);
+                var data = dataU8.buffer;
+                var dataDV = new DataView(data);
 
-                const usedTDU8 = utdu8;
+                var usedTDU8 = utdu8;
                 var offs = usedTDU8 ? 0 : 64;
                 var index = bufferDV.getUint32(60, true);
                 this.#idx = index;
                 for (var i = 0; i < fileCount; i++) {
-                    const nameLen = dataDV.getUint16(offs + 8, true);
-                    const name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 64) + 10, offs - (usedTDU8 ? 0 : 64) + 10 + nameLen));
-                    const fileSize = Number(dataDV.getBigUint64(offs, true));
+                    var nameLen = dataDV.getUint16(offs + 8, true);
+                    var name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 64) + 10, offs - (usedTDU8 ? 0 : 64) + 10 + nameLen));
+                    var fileSize = Number(dataDV.getBigUint64(offs, true));
                     this.#files.push([name, dataU8.subarray(offs - (usedTDU8 ? 0 : 64) + 10 + nameLen, offs - (usedTDU8 ? 0 : 64) + 10 + nameLen + fileSize), {
                         owner: '',
                         group: '',
@@ -383,8 +383,8 @@ const HSSP = {
             };
 
             if ((() => {
-                const start = 64;
-                const end = 128;
+                var start = 64;
+                var end = 128;
 
                 var rt = 0;
 
@@ -394,15 +394,15 @@ const HSSP = {
 
                 return rt === 0;
             })()) { // v3: Uses 128B header
-                const inp = bufferU8.subarray(128, bufferU8.length);
-                const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
-                const inpDV = new DataView(inp.buffer);
+                var inp = bufferU8.subarray(128, bufferU8.length);
+                var hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+                var inpDV = new DataView(inp.buffer);
                 if (inpDV.getUint32(4, true) !== hash) throw new Error('INVALID_CHECKSUM');
-                const fileCount = bufferDV.getUint32(8, true);
+                var fileCount = bufferDV.getUint32(8, true);
                 var tempDataU8;
                 if ((() => {
-                    const start = 12;
-                    const end = 60;
+                    var start = 12;
+                    var end = 60;
 
                     var rt = 0;
 
@@ -413,9 +413,9 @@ const HSSP = {
                     return rt !== 0;
                 })()) {
                     if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) throw new Error('INVALID_PASSWORD');
-                    const iv = bufferU8.subarray(44, 60);
-                    const encrypted = bufferU8.subarray(128, buffer.byteLength);
-                    const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                    var iv = bufferU8.subarray(44, 60);
+                    var encrypted = bufferU8.subarray(128, buffer.byteLength);
+                    var decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
                         ciphertext: CryptoJS.lib.WordArray.create(encrypted),
                         salt: CryptoJS.lib.WordArray.create(iv)
                     }), CryptoJS.SHA256(password), {
@@ -428,23 +428,23 @@ const HSSP = {
                 };
 
                 var utdu8 = true;
-                const dataU8 = (() => {
+                var dataU8 = (() => {
                     if ((tempDataU8 ?? true) === true) {
                         utdu8 = false;
                         return inp;
                     } else return tempDataU8;
                 })();
-                const data = dataU8.buffer;
-                const dataDV = new DataView(data);
+                var data = dataU8.buffer;
+                var dataDV = new DataView(data);
 
-                const usedTDU8 = utdu8;
+                var usedTDU8 = utdu8;
                 var offs = usedTDU8 ? 0 : 128;
                 var index = bufferDV.getUint32(60, true);
                 this.#idx = index;
                 for (var i = 0; i < fileCount; i++) {
-                    const nameLen = dataDV.getUint16(offs + 8, true);
-                    const name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 10, offs - (usedTDU8 ? 0 : 128) + 10 + nameLen));
-                    const fileSize = Number(dataDV.getBigUint64(offs, true));
+                    var nameLen = dataDV.getUint16(offs + 8, true);
+                    var name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 10, offs - (usedTDU8 ? 0 : 128) + 10 + nameLen));
+                    var fileSize = Number(dataDV.getBigUint64(offs, true));
                     this.#files.push([name, dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 10 + nameLen, offs - (usedTDU8 ? 0 : 128) + 10 + nameLen + fileSize), {
                         owner: '',
                         group: '',
@@ -469,14 +469,14 @@ const HSSP = {
 
             switch (bufferDV.getUint8(4)) {
                 case 4: // v4: Uses 128B header completely + indexing
-                    const inp = bufferU8.subarray(128, bufferU8.length);
-                    const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+                    var inp = bufferU8.subarray(128, bufferU8.length);
+                    var hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
                     if (bufferDV.getUint32(64, true) !== hash) throw new Error('INVALID_CHECKSUM');
-                    const fileCount = bufferDV.getUint32(8, true);
+                    var fileCount = bufferDV.getUint32(8, true);
                     var tempDataU8;
                     if ((() => {
-                        const start = 12;
-                        const end = 60;
+                        var start = 12;
+                        var end = 60;
 
                         var rt = 0;
 
@@ -487,9 +487,9 @@ const HSSP = {
                         return rt !== 0;
                     })()) {
                         if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) throw new Error('INVALID_PASSWORD');
-                        const iv = bufferU8.subarray(44, 60);
-                        const encrypted = bufferU8.subarray(128, buffer.byteLength);
-                        const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                        var iv = bufferU8.subarray(44, 60);
+                        var encrypted = bufferU8.subarray(128, buffer.byteLength);
+                        var decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
                             ciphertext: CryptoJS.lib.WordArray.create(encrypted),
                             salt: CryptoJS.lib.WordArray.create(iv)
                         }), CryptoJS.SHA256(password), {
@@ -519,19 +519,19 @@ const HSSP = {
                     };
 
                     var utdu8 = true;
-                    const dataU8 = (() => {
+                    var dataU8 = (() => {
                         if ((tempDataU8 ?? true) === true) {
                             utdu8 = false;
                             return inp;
                         } else return tempDataU8;
                     })();
-                    const data = dataU8.buffer;
-                    const dataDV = new DataView(data);
+                    var data = dataU8.buffer;
+                    var dataDV = new DataView(data);
 
-                    const usedTDU8 = utdu8;
+                    var usedTDU8 = utdu8;
                     var offs = usedTDU8 ? 0 : 128;
 
-                    const files = [];
+                    var files = [];
                     for (var i = 0; i < fileCount; i++) {
                         var file = [];
                         file[2] = {};
@@ -600,13 +600,13 @@ const HSSP = {
                         files.push(file);
                     };
 
-                    const splitFileOffset = Number(bufferDV.getBigUint64(76, true));
+                    var splitFileOffset = Number(bufferDV.getBigUint64(76, true));
                     if (splitFileOffset > 0) {
-                        const file = files.shift();
+                        var file = files.shift();
 
-                        const fileStart = offs - (usedTDU8 ? 0 : 128);
+                        var fileStart = offs - (usedTDU8 ? 0 : 128);
                         offs += Number(file[1]) - splitFileOffset;
-                        const fileEnd = offs - (usedTDU8 ? 0 : 128);
+                        var fileEnd = offs - (usedTDU8 ? 0 : 128);
                         file[1] = dataU8.subarray(fileStart, fileEnd);
 
                         var idx = this.#files.findIndex(file2 => file2[0] == file[0]);
@@ -628,9 +628,9 @@ const HSSP = {
                     };
 
                     files.forEach((file) => {
-                        const fileStart = offs - (usedTDU8 ? 0 : 128);
+                        var fileStart = offs - (usedTDU8 ? 0 : 128);
                         offs += Number(file[1]);
-                        const fileEnd = offs - (usedTDU8 ? 0 : 128);
+                        var fileEnd = offs - (usedTDU8 ? 0 : 128);
                         file[1] = dataU8.subarray(fileStart, fileEnd);
 
                         if ((offs - (usedTDU8 ? 0 : 128)) > dataU8.byteLength) {
@@ -656,19 +656,19 @@ const HSSP = {
                     });
                     return;
                 case 5: // v5: Uses flags
-                    const inp = bufferU8.subarray(128, bufferU8.length);
-                    const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+                    var inp = bufferU8.subarray(128, bufferU8.length);
+                    var hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
                     if (bufferDV.getUint32(64, true) !== hash) throw new Error('INVALID_CHECKSUM');
-                    const fileCount = bufferDV.getUint32(8, true);
+                    var fileCount = bufferDV.getUint32(8, true);
                     bufferDV.getUint8(5).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
                     bufferDV.getUint8(6).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
                     bufferDV.getUint8(7).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
                     var tempDataU8;
                     if (flags[0]) {
                         if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) throw new Error('INVALID_PASSWORD');
-                        const iv = bufferU8.subarray(44, 60);
-                        const encrypted = bufferU8.subarray(128, buffer.byteLength);
-                        const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                        var iv = bufferU8.subarray(44, 60);
+                        var encrypted = bufferU8.subarray(128, buffer.byteLength);
+                        var decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
                             ciphertext: CryptoJS.lib.WordArray.create(encrypted),
                             salt: CryptoJS.lib.WordArray.create(iv)
                         }), CryptoJS.SHA256(password), {
@@ -695,19 +695,19 @@ const HSSP = {
                     };
 
                     var utdu8 = true;
-                    const dataU8 = (() => {
+                    var dataU8 = (() => {
                         if ((tempDataU8 ?? true) === true) {
                             utdu8 = false;
                             return inp;
                         } else return tempDataU8;
                     })();
-                    const data = dataU8.buffer;
-                    const dataDV = new DataView(data);
+                    var data = dataU8.buffer;
+                    var dataDV = new DataView(data);
 
-                    const usedTDU8 = utdu8;
+                    var usedTDU8 = utdu8;
                     var offs = usedTDU8 ? 0 : 128;
 
-                    const files = [];
+                    var files = [];
                     for (var i = 0; i < fileCount; i++) {
                         var file = [];
                         file[2] = {};
@@ -777,13 +777,13 @@ const HSSP = {
                     };
 
                     if (flags[2]) {
-                        const splitFileOffset = Number(bufferDV.getBigUint64(76, true));
+                        var splitFileOffset = Number(bufferDV.getBigUint64(76, true));
                         if (splitFileOffset > 0) {
-                            const file = files.shift();
+                            var file = files.shift();
 
-                            const fileStart = offs - (usedTDU8 ? 0 : 128);
+                            var fileStart = offs - (usedTDU8 ? 0 : 128);
                             offs += Number(file[1]) - splitFileOffset;
-                            const fileEnd = offs - (usedTDU8 ? 0 : 128);
+                            var fileEnd = offs - (usedTDU8 ? 0 : 128);
                             file[1] = dataU8.subarray(fileStart, fileEnd);
 
                             var idx = this.#files.findIndex(file2 => file2[0] == file[0]);
@@ -805,9 +805,9 @@ const HSSP = {
                         };
 
                         files.forEach((file) => {
-                            const fileStart = offs - (usedTDU8 ? 0 : 128);
+                            var fileStart = offs - (usedTDU8 ? 0 : 128);
                             offs += Number(file[1]);
-                            const fileEnd = offs - (usedTDU8 ? 0 : 128);
+                            var fileEnd = offs - (usedTDU8 ? 0 : 128);
                             file[1] = dataU8.subarray(fileStart, fileEnd);
 
                             if ((offs - (usedTDU8 ? 0 : 128)) > dataU8.byteLength) {
@@ -879,16 +879,16 @@ const HSSP = {
                     });
                     var pack = out.subarray(64, size);
                     if (this.#pwd !== null) {
-                        const iv = CryptoJS.lib.WordArray.random(16);
-                        const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
+                        var iv = CryptoJS.lib.WordArray.random(16);
+                        var encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
                             mode: CryptoJS.mode.CBC
                         }).ciphertext.toUint8Array();
                         out.set(iv.toUint8Array(), 44);
                         out.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
-                        const eOut = new Uint8Array(64 + encrypted.byteLength);
-                        const eOutDV = new DataView(eOut.buffer);
+                        var eOut = new Uint8Array(64 + encrypted.byteLength);
+                        var eOutDV = new DataView(eOut.buffer);
                         eOut.set(out.subarray(0, 64), 0);
                         eOut.set(encrypted, 64);
                         eOutDV.setUint32(4, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
@@ -924,16 +924,16 @@ const HSSP = {
                     });
                     var pack = out.subarray(64, size);
                     if (this.#pwd !== null) {
-                        const iv = CryptoJS.lib.WordArray.random(16);
-                        const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
+                        var iv = CryptoJS.lib.WordArray.random(16);
+                        var encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
                             mode: CryptoJS.mode.CBC
                         }).ciphertext.toUint8Array();
                         out.set(iv.toUint8Array(), 44);
                         out.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
-                        const eOut = new Uint8Array(64 + encrypted.byteLength);
-                        const eOutDV = new DataView(eOut.buffer);
+                        var eOut = new Uint8Array(64 + encrypted.byteLength);
+                        var eOutDV = new DataView(eOut.buffer);
                         eOut.set(out.subarray(0, 64), 0);
                         eOut.set(encrypted, 64);
                         eOutDV.setUint32(4, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
@@ -969,16 +969,16 @@ const HSSP = {
                     });
                     var pack = out.subarray(128, size);
                     if (this.#pwd !== null) {
-                        const iv = CryptoJS.lib.WordArray.random(16);
-                        const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
+                        var iv = CryptoJS.lib.WordArray.random(16);
+                        var encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
                             mode: CryptoJS.mode.CBC
                         }).ciphertext.toUint8Array();
                         out.set(iv.toUint8Array(), 44);
                         out.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
-                        const eOut = new Uint8Array(128 + encrypted.byteLength);
-                        const eOutDV = new DataView(eOut.buffer);
+                        var eOut = new Uint8Array(128 + encrypted.byteLength);
+                        var eOutDV = new DataView(eOut.buffer);
                         eOut.set(out.subarray(0, 128), 0);
                         eOut.set(encrypted, 128);
                         eOutDV.setUint32(4, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
@@ -1015,7 +1015,7 @@ const HSSP = {
                     out.set(new TextEncoder().encode(this.#compAlgo), 60); // Used compression algorithm, 0 if not set | 4+60
                     // this file is not split | 28+68
                     out.set(new TextEncoder().encode(this.#comment.slice(0, 16)), 96); // Comment | 16+96
-                    out.set(new TextEncoder().encode('hssp 4.0.0 WEB'), 112); // Used generator | 16+112
+                    out.set(new TextEncoder().encode('hssp 4.0.1 WEB'), 112); // Used generator | 16+112
 
                     var offs = 128; // Start
 
@@ -1096,16 +1096,16 @@ const HSSP = {
                     pack = outBuf.slice(128, size);
                     var outBufDV = new DataView(outBuf.buffer);
                     if (this.#pwd !== null) {
-                        const iv = CryptoJS.lib.WordArray.random(16);
-                        const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
+                        var iv = CryptoJS.lib.WordArray.random(16);
+                        var encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
                             mode: CryptoJS.mode.CBC
                         }).ciphertext.toUint8Array();
                         outBuf.set(iv.toUint8Array(), 44);
                         outBuf.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
-                        const eOut = new Uint8Array(128 + encrypted.byteLength);
-                        const eOutDV = new DataView(eOut.buffer);
+                        var eOut = new Uint8Array(128 + encrypted.byteLength);
+                        var eOutDV = new DataView(eOut.buffer);
                         eOut.set(outBuf.slice(0, 128), 0);
                         eOut.set(encrypted, 128);
                         eOutDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
@@ -1171,7 +1171,7 @@ const HSSP = {
                     out.set(new TextEncoder().encode(this.#compAlgo), 60); // Used compression algorithm, 0 if not set | 4+60
                     // this file is not split | 28+68
                     out.set(new TextEncoder().encode(this.#comment.slice(0, 16)), 96); // Comment | 16+96
-                    out.set(new TextEncoder().encode('hssp 4.0.0 WEB'), 112); // Used generator | 16+112
+                    out.set(new TextEncoder().encode('hssp 4.0.1 WEB'), 112); // Used generator | 16+112
 
                     var offs = 128; // Start
 
@@ -1252,16 +1252,16 @@ const HSSP = {
                     pack = outBuf.slice(128, size);
                     var outBufDV = new DataView(outBuf.buffer);
                     if (this.#pwd !== null) {
-                        const iv = CryptoJS.lib.WordArray.random(16);
-                        const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
+                        var iv = CryptoJS.lib.WordArray.random(16);
+                        var encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
                             iv,
                             padding: CryptoJS.pad.Pkcs7,
                             mode: CryptoJS.mode.CBC
                         }).ciphertext.toUint8Array();
                         outBuf.set(iv.toUint8Array(), 44);
                         outBuf.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
-                        const eOut = new Uint8Array(128 + encrypted.byteLength);
-                        const eOutDV = new DataView(eOut.buffer);
+                        var eOut = new Uint8Array(128 + encrypted.byteLength);
+                        var eOutDV = new DataView(eOut.buffer);
                         eOut.set(outBuf.slice(0, 128), 0);
                         eOut.set(encrypted, 128);
                         eOutDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
@@ -1310,8 +1310,8 @@ const HSSP = {
             });
 
             var globalOffs = 0;
-            const out = [];
-            const avgSize = Math.floor(bufferPool.byteLength / count);
+            var out = [];
+            var avgSize = Math.floor(bufferPool.byteLength / count);
 
             for (var i = 0; i < count; i++) {
                 var filesInBuffer = [];
@@ -1360,7 +1360,7 @@ const HSSP = {
                         fileStartDV.setUint32(92, i, true); // File ID of this package | 4+92
 
                         fileStart.set(new TextEncoder().encode(this.#comment.slice(0, 16)), 96); // Comment | 16+96
-                        fileStart.set(new TextEncoder().encode('hssp 4.0.0 WEB'), 112); // Used generator | 16+112
+                        fileStart.set(new TextEncoder().encode('hssp 4.0.1 WEB'), 112); // Used generator | 16+112
 
                         var offs = 128; // Start
 
@@ -1442,16 +1442,16 @@ const HSSP = {
                         pack = outBuf.slice(128, size);
                         var outBufDV = new DataView(outBuf.buffer);
                         if (this.#pwd !== null) {
-                            const iv = CryptoJS.lib.WordArray.random(16);
-                            const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
+                            var iv = CryptoJS.lib.WordArray.random(16);
+                            var encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
                                 iv,
                                 padding: CryptoJS.pad.Pkcs7,
                                 mode: CryptoJS.mode.CBC
                             }).ciphertext.toUint8Array();
                             outBuf.set(iv.toUint8Array(), 44);
                             outBuf.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
-                            const eOut = new Uint8Array(128 + encrypted.byteLength);
-                            const eOutDV = new DataView(eOut.buffer);
+                            var eOut = new Uint8Array(128 + encrypted.byteLength);
+                            var eOutDV = new DataView(eOut.buffer);
                             eOut.set(outBuf.slice(0, 128), 0);
                             eOut.set(encrypted, 128);
                             eOutDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
@@ -1526,7 +1526,7 @@ const HSSP = {
                         fileStartDV.setUint32(92, i, true); // File ID of this package | 4+92
 
                         fileStart.set(new TextEncoder().encode(this.#comment.slice(0, 16)), 96); // Comment | 16+96
-                        fileStart.set(new TextEncoder().encode('hssp 4.0.0 WEB'), 112); // Used generator | 16+112
+                        fileStart.set(new TextEncoder().encode('hssp 4.0.1 WEB'), 112); // Used generator | 16+112
 
                         var offs = 128; // Start
 
@@ -1608,16 +1608,16 @@ const HSSP = {
                         pack = outBuf.slice(128, size);
                         var outBufDV = new DataView(outBuf.buffer);
                         if (this.#pwd !== null) {
-                            const iv = CryptoJS.lib.WordArray.random(16);
-                            const encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
+                            var iv = CryptoJS.lib.WordArray.random(16);
+                            var encrypted = CryptoJS.AES.encrypt(CryptoJS.lib.WordArray.create(pack), CryptoJS.SHA256(this.#pwd), {
                                 iv,
                                 padding: CryptoJS.pad.Pkcs7,
                                 mode: CryptoJS.mode.CBC
                             }).ciphertext.toUint8Array();
                             outBuf.set(iv.toUint8Array(), 44);
                             outBuf.set(CryptoJS.SHA256(CryptoJS.SHA256(this.#pwd)).toUint8Array(), 12);
-                            const eOut = new Uint8Array(128 + encrypted.byteLength);
-                            const eOutDV = new DataView(eOut.buffer);
+                            var eOut = new Uint8Array(128 + encrypted.byteLength);
+                            var eOutDV = new DataView(eOut.buffer);
                             eOut.set(outBuf.slice(0, 128), 0);
                             eOut.set(encrypted, 128);
                             eOutDV.setUint32(64, murmurhash3_32_gc(new TextDecoder().decode(encrypted), 0x31082007), true);
@@ -1644,12 +1644,12 @@ const HSSP = {
     dependency: {
         load: (name) => new Promise((resolve, reject) => {
             if (!HSSP.dependency.urls[name]) reject('INVALID_NAME');
-            const script = document.createElement('script');
+            var script = document.createElement('script');
             script.onload = () => {
                 if (name == 'crypto-js') CryptoJS.lib.WordArray.__proto__.toUint8Array = function () {
-                    const l = this.sigBytes;
-                    const words = this.words;
-                    const result = new Uint8Array(l);
+                    var l = this.sigBytes;
+                    var words = this.words;
+                    var result = new Uint8Array(l);
                     var i = 0, j = 0;
                     while (true) {
                         if (i == l)
@@ -1700,8 +1700,8 @@ const HSSP = {
         if (buffer.buffer instanceof ArrayBuffer) {
             buffer = buffer.buffer;
         };
-        const bufferU8 = new Uint8Array(buffer);
-        const bufferDV = new DataView(buffer);
+        var bufferU8 = new Uint8Array(buffer);
+        var bufferDV = new DataView(buffer);
 
         var metadata = {
             version: 0,
@@ -1735,20 +1735,20 @@ const HSSP = {
 
         if (new TextDecoder().decode(bufferU8.subarray(0, 4)) == 'SFA\x00') { // v1: 0-4 SFA\x00, Uses 64B header
             metadata.version = 1;
-            const inp = bufferU8.subarray(64, bufferU8.length);
+            var inp = bufferU8.subarray(64, bufferU8.length);
             metadata.hash.valid = true;
-            const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
-            const inpDV = new DataView(inp.buffer);
+            var hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+            var inpDV = new DataView(inp.buffer);
             metadata.hash.given = inpDV.getUint32(4, true);
             metadata.hash.calculated = hash;
             if (inpDV.getUint32(4, true) !== hash) metadata.hash.valid = false;
-            const fileCount = bufferDV.getUint32(8, true);
+            var fileCount = bufferDV.getUint32(8, true);
             metadata.compression = false;
             metadata.password.correct = null;
             var tempDataU8;
             if ((() => {
-                const start = 12;
-                const end = 60;
+                var start = 12;
+                var end = 60;
 
                 var rt = 0;
 
@@ -1764,9 +1764,9 @@ const HSSP = {
                 metadata.password.hash = Array.from(bufferU8.subarray(12, 44)).map(e => e.toString(16).length < 2 ? '0' + e.toString(16) : e.toString(16)).join('');
                 if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) return metadata;
                 metadata.password.correct = true;
-                const iv = bufferU8.subarray(44, 60);
-                const encrypted = bufferU8.subarray(64, buffer.byteLength);
-                const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                var iv = bufferU8.subarray(44, 60);
+                var encrypted = bufferU8.subarray(64, buffer.byteLength);
+                var decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
                     ciphertext: CryptoJS.lib.WordArray.create(encrypted),
                     salt: CryptoJS.lib.WordArray.create(iv)
                 }), CryptoJS.SHA256(password), {
@@ -1779,22 +1779,22 @@ const HSSP = {
             };
 
             var utdu8 = true;
-            const dataU8 = (() => {
+            var dataU8 = (() => {
                 if ((tempDataU8 ?? true) === true) {
                     utdu8 = false;
                     return inp;
                 } else return tempDataU8;
             })();
-            const data = dataU8.buffer;
-            const dataDV = new DataView(data);
+            var data = dataU8.buffer;
+            var dataDV = new DataView(data);
 
-            const usedTDU8 = utdu8;
+            var usedTDU8 = utdu8;
             var offs = usedTDU8 ? 0 : 64;
             var index = bufferDV.getUint32(60, true);
             for (var i = 0; i < fileCount; i++) {
-                const nameLen = dataDV.getUint16(offs + 8, true);
-                const name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 64) + 10, offs - (usedTDU8 ? 0 : 64) + 10 + nameLen));
-                const fileSize = dataDV.getBigUint64(offs, true);
+                var nameLen = dataDV.getUint16(offs + 8, true);
+                var name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 64) + 10, offs - (usedTDU8 ? 0 : 64) + 10 + nameLen));
+                var fileSize = dataDV.getBigUint64(offs, true);
                 metadata.files[name] = {
                     size: fileSize,
                     owner: '',
@@ -1820,20 +1820,20 @@ const HSSP = {
 
         if (murmurhash3_32_gc(new TextDecoder().decode(bufferU8.subarray(64, bufferU8.length)), 0x31082007) == bufferDV.getUint32(4, true)) { // v2: Uses 64B header
             metadata.version = 2;
-            const inp = bufferU8.subarray(64, bufferU8.length);
+            var inp = bufferU8.subarray(64, bufferU8.length);
             metadata.hash.valid = true;
-            const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
-            const inpDV = new DataView(inp.buffer);
+            var hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+            var inpDV = new DataView(inp.buffer);
             metadata.hash.given = inpDV.getUint32(4, true);
             metadata.hash.calculated = hash;
             if (inpDV.getUint32(4, true) !== hash) metadata.hash.valid = false;
-            const fileCount = bufferDV.getUint32(8, true);
+            var fileCount = bufferDV.getUint32(8, true);
             metadata.compression = false;
             metadata.password.correct = null;
             var tempDataU8;
             if ((() => {
-                const start = 12;
-                const end = 60;
+                var start = 12;
+                var end = 60;
 
                 var rt = 0;
 
@@ -1849,9 +1849,9 @@ const HSSP = {
                 metadata.password.hash = Array.from(bufferU8.subarray(12, 44)).map(e => e.toString(16).length < 2 ? '0' + e.toString(16) : e.toString(16)).join('');
                 if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) return metadata;
                 metadata.password.correct = true;
-                const iv = bufferU8.subarray(44, 60);
-                const encrypted = bufferU8.subarray(64, buffer.byteLength);
-                const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                var iv = bufferU8.subarray(44, 60);
+                var encrypted = bufferU8.subarray(64, buffer.byteLength);
+                var decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
                     ciphertext: CryptoJS.lib.WordArray.create(encrypted),
                     salt: CryptoJS.lib.WordArray.create(iv)
                 }), CryptoJS.SHA256(password), {
@@ -1864,22 +1864,22 @@ const HSSP = {
             };
 
             var utdu8 = true;
-            const dataU8 = (() => {
+            var dataU8 = (() => {
                 if ((tempDataU8 ?? true) === true) {
                     utdu8 = false;
                     return inp;
                 } else return tempDataU8;
             })();
-            const data = dataU8.buffer;
-            const dataDV = new DataView(data);
+            var data = dataU8.buffer;
+            var dataDV = new DataView(data);
 
-            const usedTDU8 = utdu8;
+            var usedTDU8 = utdu8;
             var offs = usedTDU8 ? 0 : 64;
             var index = bufferDV.getUint32(60, true);
             for (var i = 0; i < fileCount; i++) {
-                const nameLen = dataDV.getUint16(offs + 8, true);
-                const name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 64) + 10, offs - (usedTDU8 ? 0 : 64) + 10 + nameLen));
-                const fileSize = dataDV.getBigUint64(offs, true);
+                var nameLen = dataDV.getUint16(offs + 8, true);
+                var name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 64) + 10, offs - (usedTDU8 ? 0 : 64) + 10 + nameLen));
+                var fileSize = dataDV.getBigUint64(offs, true);
                 metadata.files[name] = {
                     size: fileSize,
                     owner: '',
@@ -1904,8 +1904,8 @@ const HSSP = {
         };
 
         if ((() => {
-            const start = 64;
-            const end = 128;
+            var start = 64;
+            var end = 128;
 
             var rt = 0;
 
@@ -1916,20 +1916,20 @@ const HSSP = {
             return rt === 0;
         })()) { // v3: Uses 128B header
             metadata.version = 3;
-            const inp = bufferU8.subarray(128, bufferU8.length);
+            var inp = bufferU8.subarray(128, bufferU8.length);
             metadata.hash.valid = true;
-            const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
-            const inpDV = new DataView(inp.buffer);
+            var hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+            var inpDV = new DataView(inp.buffer);
             metadata.hash.given = inpDV.getUint32(4, true);
             metadata.hash.calculated = hash;
             if (inpDV.getUint32(4, true) !== hash) metadata.hash.valid = false;
-            const fileCount = bufferDV.getUint32(8, true);
+            var fileCount = bufferDV.getUint32(8, true);
             metadata.compression = false;
             metadata.password.correct = null;
             var tempDataU8;
             if ((() => {
-                const start = 12;
-                const end = 60;
+                var start = 12;
+                var end = 60;
 
                 var rt = 0;
 
@@ -1945,9 +1945,9 @@ const HSSP = {
                 metadata.password.hash = Array.from(bufferU8.subarray(12, 44)).map(e => e.toString(16).length < 2 ? '0' + e.toString(16) : e.toString(16)).join('');
                 if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) return metadata;
                 metadata.password.correct = true;
-                const iv = bufferU8.subarray(44, 60);
-                const encrypted = bufferU8.subarray(128, buffer.byteLength);
-                const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                var iv = bufferU8.subarray(44, 60);
+                var encrypted = bufferU8.subarray(128, buffer.byteLength);
+                var decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
                     ciphertext: CryptoJS.lib.WordArray.create(encrypted),
                     salt: CryptoJS.lib.WordArray.create(iv)
                 }), CryptoJS.SHA256(password), {
@@ -1960,22 +1960,22 @@ const HSSP = {
             };
 
             var utdu8 = true;
-            const dataU8 = (() => {
+            var dataU8 = (() => {
                 if ((tempDataU8 ?? true) === true) {
                     utdu8 = false;
                     return inp;
                 } else return tempDataU8;
             })();
-            const data = dataU8.buffer;
-            const dataDV = new DataView(data);
+            var data = dataU8.buffer;
+            var dataDV = new DataView(data);
 
-            const usedTDU8 = utdu8;
+            var usedTDU8 = utdu8;
             var offs = usedTDU8 ? 0 : 128;
             var index = bufferDV.getUint32(60, true);
             for (var i = 0; i < fileCount; i++) {
-                const nameLen = dataDV.getUint16(offs + 8, true);
-                const name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 10, offs - (usedTDU8 ? 0 : 128) + 10 + nameLen));
-                const fileSize = dataDV.getBigUint64(offs, true);
+                var nameLen = dataDV.getUint16(offs + 8, true);
+                var name = new TextDecoder().decode(dataU8.subarray(offs - (usedTDU8 ? 0 : 128) + 10, offs - (usedTDU8 ? 0 : 128) + 10 + nameLen));
+                var fileSize = dataDV.getBigUint64(offs, true);
                 metadata.files[name] = {
                     size: fileSize,
                     owner: '',
@@ -2002,13 +2002,13 @@ const HSSP = {
         switch (bufferDV.getUint8(4)) {
             case 4: // v4: Uses 128B header completely + indexing
                 metadata.version = 4;
-                const inp = bufferU8.subarray(128, bufferU8.length);
+                var inp = bufferU8.subarray(128, bufferU8.length);
                 metadata.hash.valid = true;
-                const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+                var hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
                 metadata.hash.given = bufferDV.getUint32(64, true);
                 metadata.hash.calculated = hash;
                 if (bufferDV.getUint32(64, true) !== hash) metadata.hash.valid = false;
-                const fileCount = bufferDV.getUint32(8, true);
+                var fileCount = bufferDV.getUint32(8, true);
                 switch (new TextDecoder().decode(bufferU8.subarray(60, 64))) {
                     case 'DFLT':
                         metadata.compression = 'DEFLATE';
@@ -2029,8 +2029,8 @@ const HSSP = {
                 metadata.password.correct = null;
                 var tempDataU8;
                 if ((() => {
-                    const start = 12;
-                    const end = 60;
+                    var start = 12;
+                    var end = 60;
 
                     var rt = 0;
 
@@ -2046,9 +2046,9 @@ const HSSP = {
                     metadata.password.hash = Array.from(bufferU8.subarray(12, 44)).map(e => e.toString(16).length < 2 ? '0' + e.toString(16) : e.toString(16)).join('');
                     if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) return metadata;
                     metadata.password.correct = true;
-                    const iv = bufferU8.subarray(44, 60);
-                    const encrypted = bufferU8.subarray(128, buffer.byteLength);
-                    const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                    var iv = bufferU8.subarray(44, 60);
+                    var encrypted = bufferU8.subarray(128, buffer.byteLength);
+                    var decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
                         ciphertext: CryptoJS.lib.WordArray.create(encrypted),
                         salt: CryptoJS.lib.WordArray.create(iv)
                     }), CryptoJS.SHA256(password), {
@@ -2072,14 +2072,14 @@ const HSSP = {
                 };
 
                 var utdu8 = true;
-                const dataU8 = (() => {
+                var dataU8 = (() => {
                     if ((tempDataU8 ?? true) === true) {
                         utdu8 = false;
                         return inp;
                     } else return tempDataU8;
                 })();
-                const data = dataU8.buffer;
-                const dataDV = new DataView(data);
+                var data = dataU8.buffer;
+                var dataDV = new DataView(data);
 
                 metadata.split.totalFileCount = Number(bufferDV.getBigUint64(68, true));
                 metadata.split.id = bufferDV.getUint32(92, true);
@@ -2091,7 +2091,7 @@ const HSSP = {
 
                 metadata.generator = new TextDecoder().decode(bufferU8.subarray(112, 128)).split('\x00', '');
 
-                const usedTDU8 = utdu8;
+                var usedTDU8 = utdu8;
                 var offs = usedTDU8 ? 0 : 128;
 
                 for (var i = 0; i < fileCount; i++) {
@@ -2163,13 +2163,13 @@ const HSSP = {
                 return metadata;
             case 5: // v4: Uses flags
                 metadata.version = 5;
-                const inp = bufferU8.subarray(128, bufferU8.length);
+                var inp = bufferU8.subarray(128, bufferU8.length);
                 metadata.hash.valid = true;
-                const hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
+                var hash = murmurhash3_32_gc(new TextDecoder().decode(inp), 0x31082007);
                 metadata.hash.given = bufferDV.getUint32(64, true);
                 metadata.hash.calculated = hash;
                 if (bufferDV.getUint32(64, true) !== hash) metadata.hash.valid = false;
-                const fileCount = bufferDV.getUint32(8, true);
+                var fileCount = bufferDV.getUint32(8, true);
                 bufferDV.getUint8(5).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
                 bufferDV.getUint8(6).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
                 bufferDV.getUint8(7).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
@@ -2196,9 +2196,9 @@ const HSSP = {
                     metadata.password.hash = Array.from(bufferU8.subarray(12, 44)).map(e => e.toString(16).length < 2 ? '0' + e.toString(16) : e.toString(16)).join('');
                     if (CryptoJS.SHA256(CryptoJS.SHA256(password)).toString(CryptoJS.enc.Hex) !== bufferU8.subarray(12, 44).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')) return metadata;
                     metadata.password.correct = true;
-                    const iv = bufferU8.subarray(44, 60);
-                    const encrypted = bufferU8.subarray(128, buffer.byteLength);
-                    const decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
+                    var iv = bufferU8.subarray(44, 60);
+                    var encrypted = bufferU8.subarray(128, buffer.byteLength);
+                    var decrypted = CryptoJS.AES.decrypt(CryptoJS.lib.CipherParams.create({
                         ciphertext: CryptoJS.lib.WordArray.create(encrypted),
                         salt: CryptoJS.lib.WordArray.create(iv)
                     }), CryptoJS.SHA256(password), {
@@ -2222,14 +2222,14 @@ const HSSP = {
                 };
 
                 var utdu8 = true;
-                const dataU8 = (() => {
+                var dataU8 = (() => {
                     if ((tempDataU8 ?? true) === true) {
                         utdu8 = false;
                         return inp;
                     } else return tempDataU8;
                 })();
-                const data = dataU8.buffer;
-                const dataDV = new DataView(data);
+                var data = dataU8.buffer;
+                var dataDV = new DataView(data);
 
                 metadata.split.totalFileCount = Number(bufferDV.getBigUint64(68, true));
                 if (flags[2]) {
@@ -2243,7 +2243,7 @@ const HSSP = {
 
                 metadata.generator = new TextDecoder().decode(bufferU8.subarray(112, 128)).split('\x00', '');
 
-                const usedTDU8 = utdu8;
+                var usedTDU8 = utdu8;
                 var offs = usedTDU8 ? 0 : 128;
 
                 for (var i = 0; i < fileCount; i++) {

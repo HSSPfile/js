@@ -1,6 +1,6 @@
 {
     "name": "hssp",
-    "version": "4.0.0",
+    "version": "4.0.1",
     "description": "Create, edit and read HSSP files in pure JavaScript",
     "main": "main.js",
     "scripts": {
