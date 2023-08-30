@@ -17,6 +17,8 @@ class Editor { // Can hold massive amounts of data in a single file
     #comment = '';
     #ver = 5;
     #idx = 0;
+    #enc = false;
+    #cmp = false;
 
     /**
      * Creates a new editor
@@ -43,7 +45,7 @@ class Editor { // Can hold massive amounts of data in a single file
      * Adds a file to the editor
      * @param {string} name The name of the file to add
      * @param {Buffer} buffer The buffer of the file to add
-     * @param {{hidden: boolean, system: boolean, enableBackup: boolean, forceBackup: boolean, readOnly: boolean, mainFile: boolean, permissions: number, owner: string, group: string, created: Date, changed: Date, opened: Date, webLink: string}} [options] The options of the folder to add
+     * @param {{hidden: boolean, system: boolean, enableBackup: boolean, forceBackup: boolean, readOnly: boolean, mainFile: boolean, permissions: number, owner: string, group: string, created: Date, changed: Date, opened: Date, webLink: string, encrypted: boolean, compressed: boolean}} [options] The options of the folder to add
      * 
      * @since 1.0.0/v1
      */
@@ -67,7 +69,10 @@ class Editor { // Can hold massive amounts of data in a single file
             created: options.created ?? new Date(),
             changed: options.changed ?? new Date(),
             opened: options.opened ?? new Date(),
-            webLink: options.webLink ?? '' // A string containing a link to an exact same file on the web
+            webLink: options.webLink ?? '', // A string containing a link to an exact same file on the web
+
+            encrypted: options.encrypted ?? this.#pwd !== null,
+            compressed: options.compressed ?? this.#compAlgo !== 'NONE'
         };
         (idx => this.#idx = options.mainFile ? idx : this.#idx)(this.#files.push([name, buffer, options]));
     }
@@ -99,7 +104,7 @@ class Editor { // Can hold massive amounts of data in a single file
             created: options.created ?? new Date(),
             changed: options.changed ?? new Date(),
             opened: options.opened ?? new Date(),
-            webLink: options.webLink ?? '' // A string containing a link to an exact same file on the web
+            webLink: options.webLink ?? '', // A string containing a link to an exact same file on the web
         };
         (idx => this.#idx = options.mainFile ? idx : this.#idx)(this.#files.push([name, Buffer.alloc(0), options]));
     }
@@ -185,6 +190,46 @@ class Editor { // Can hold massive amounts of data in a single file
      */
     get version() {
         return this.#ver;
+    }
+
+    /**
+     * Defines if the index should be encrypted
+     * @param {boolean} bool The boolean
+     * 
+     * @since 5.0.0/v6
+     */
+    set encryptIndex(bool) {
+        this.#enc = !!bool;
+    }
+
+    /**
+     * Defines if the index should be encrypted
+     * @returns {boolean} The boolean
+     * 
+     * @since 5.0.0/v6
+     */
+    get encryptIndex() {
+        return this.#enc;
+    }
+
+    /**
+     * Defines if the index should be compressed
+     * @param {boolean} bool The boolean
+     * 
+     * @since 5.0.0/v6
+     */
+    set compressIndex(bool) {
+        this.#cmp = !!bool;
+    }
+
+    /**
+     * Defines if the index should be compressed
+     * @returns {boolean} The boolean
+     * 
+     * @since 5.0.0/v6
+     */
+    get compressIndex() {
+        return this.#cmp;
     }
 
     /**
@@ -987,6 +1032,174 @@ class Editor { // Can hold massive amounts of data in a single file
                 };
                 outBuf.writeUint32LE(murmurhash.murmur3(pack.toString('utf8'), 0x31082007), 64); // checksum
                 return outBuf;
+            case 6:
+                var headerSize = 128; // Bytes
+                var indexSize = 0;
+                var filesSize = 0;
+                this.#files.forEach(file => {
+                    indexSize += (
+                        39 + // various constants
+
+                        (new TextEncoder().encode(file[0])).byteLength + // File name length
+                        (new TextEncoder().encode(file[2].owner)).byteLength + // Owner name length
+                        (new TextEncoder().encode(file[2].group)).byteLength + // Group name length
+                        (new TextEncoder().encode(file[2].webLink)).byteLength // Web link length
+                    );
+
+                    filesSize = file[1].byteLength;
+                });
+                var iv = crypto.randomBytes(16);
+                var header = Buffer.alloc(headerSize);
+                header.write('HSSP', 0, 'utf8'); // Magic value :) | 4+0
+                header.writeUint8(5, 4); // File standard version, see https://hssp.leox.dev/docs/versions | 1+4
+                header.writeUint8(parseInt([
+                    this.#enc, // F1: is encrypted
+                    this.#cmp, // F2: is compressed
+                    false, // F3: is split
+                    false, // F4: unallocated
+                    false, // F5: unallocated
+                    false, // F6: unallocated
+                    false, // F7: unallocated
+                    false // F8: unallocated
+                ].map(b => +b).join(''), 2), 5); // Flags #1, see https://hssp.leox.dev/docs/flags | 1+5
+                header.writeUint8(parseInt([
+                    false, // F9: unallocated
+                    false, // F10: unallocated
+                    false, // F11: unallocated
+                    false, // F12: unallocated
+                    false, // F13: unallocated
+                    false, // F14: unallocated
+                    false, // F15: unallocated
+                    false // F16: unallocated
+                ].map(b => +b).join(''), 2), 6); // Flags #2, see https://hssp.leox.dev/docs/flags | 1+6
+                header.writeUint8(parseInt([
+                    false, // F17: unallocated
+                    false, // F18: unallocated
+                    false, // F19: unallocated
+                    false, // F20: unallocated
+                    false, // F21: unallocated
+                    false, // F22: unallocated
+                    false, // F23: unallocated
+                    false // F24: unallocated
+                ].map(b => +b).join(''), 2), 7); // Flags #3, see https://hssp.leox.dev/docs/flags | 1+7
+                header.writeUint32LE(this.#files.length, 8); // File count | 4+8
+                crypto.createHash('sha256').update(crypto.createHash('sha256').update(this.#pwd).digest()).digest().copy(header, 12); // Password hash | 32+12
+                iv.copy(outBuf, 44); // Encryption initialization vector (iv) | 16+44
+                header.write(this.#compAlgo, 60, 'utf8'); // Used compression algorithm, NONE if not set | 4+60
+                // this file is not split | 28+68
+                header.write(this.#comment.slice(0, 16), 96, 'utf8'); // Comment | 16+96
+                header.write('hssp 5.0.0 @ npm', 112, 'utf8'); // Used generator | 16+112
+
+                var index = Buffer.alloc(indexSize);
+                var offs = 0; // Start
+                var checksumOffsets = [];
+
+                // index
+                this.#files.forEach(file => {
+                    var innerOffs = 0;
+                    index.writeBigUint64LE(BigInt(file[1].byteLength), offs);
+                    offs += innerOffs + 8;
+
+                    innerOffs = (new TextEncoder().encode(file[0])).byteLength;
+                    index.writeUint16LE(innerOffs, offs);
+                    index.write(file[0], offs + 2, 'utf8');
+                    offs += innerOffs + 2;
+
+                    innerOffs = (new TextEncoder().encode(file[2].owner)).byteLength;
+                    index.writeUint16LE(innerOffs, offs);
+                    index.write(file[2].owner, offs + 2, 'utf8');
+                    offs += innerOffs + 2;
+
+                    innerOffs = (new TextEncoder().encode(file[2].group)).byteLength;
+                    index.writeUint16LE(innerOffs, offs);
+                    index.write(file[2].group, offs + 2, 'utf8');
+                    offs += innerOffs + 2;
+
+                    innerOffs = (new TextEncoder().encode(file[2].webLink)).byteLength;
+                    index.writeUint32LE(innerOffs, offs);
+                    index.write(file[2].webLink, offs + 4, 'utf8');
+                    offs += innerOffs + 4;
+
+                    index.writeUintLE(file[2].created.getTime(), offs, 6);
+                    index.writeUintLE(file[2].changed.getTime(), offs + 6, 6);
+                    index.writeUintLE(file[2].opened.getTime(), offs + 12, 6);
+                    offs += 18;
+
+                    parseInt(file[2].permissions, 8).toString(2).split('').map(x => parseInt(x)).forEach((bit, addr) => {
+                        index[offs + Math.floor(addr / 8)] |= (bit << addr);
+                    });
+                    index[offs + 1] |= (+!!file[2].isFolder << 1);
+                    index[offs + 1] |= (+!!file[2].hidden << 2);
+                    index[offs + 1] |= (+!!file[2].system << 3);
+                    index[offs + 1] |= (+!!file[2].enableBackup << 4);
+                    index[offs + 1] |= (+!!file[2].forceBackup << 5);
+                    index[offs + 1] |= (+!!file[2].readOnly << 6);
+                    index[offs + 1] |= (+!!file[2].mainFile << 7);
+                    index[offs + 2] |= (+!!file[2].encrypted << 0);
+                    index[offs + 2] |= (+!!file[2].compressed << 1);
+                    // 6 unallocated bits
+
+                    checksumOffsets.push(offs + 3);
+                    // 4 bytes reserved for checksum
+                    offs += 7;
+                });
+
+                if (this.#cmp) switch (this.#compAlgo) {
+                    case 'DFLT':
+                        index = Buffer.from(deflate(index, { level: this.#compLvl }));
+                        break;
+
+                    case 'LZMA':
+                        index = Buffer.from(lzma.compress(index, this.#compLvl));
+                        break;
+
+                    case 'NONE':
+                        break;
+
+                    default:
+                        throw new Error('COMPRESSION_NOT_SUPPORTED');
+                };
+                indexSize = index.byteLength;
+
+                if (this.#enc) {
+                    var cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
+                    index = Buffer.concat([cipher.update(index), cipher.final()]);
+                };
+                indexSize = index.byteLength;
+                header.writeUint32LE(murmurhash.murmur3(index.toString('utf8'), 0x31082007), 64); // checksum
+
+                // files
+                var files = [];
+                this.#files.forEach(file => {
+                    var newByteLength = file[1].byteLength;
+                    files.push((cFile) => file[2].encrypted ? (() => {
+                        var cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
+                        return encrypted = Buffer.concat([cipher.update(cFile), cipher.final()]);
+                    })() : cFile)((file[2].compressed ? (() => {
+                        switch (this.#compAlgo) {
+                            case 'DFLT':
+                                var cFile = Buffer.from(deflate(file[1], { level: this.#compLvl }));
+                                newByteLength = cFile.byteLength;
+                                return cFile;
+
+                            case 'LZMA':
+                                var cFile = Buffer.from(lzma.compress(file[1], this.#compLvl));
+                                newByteLength = cFile.byteLength;
+                                return cFile;
+
+                            case 'NONE':
+                                return file[1];
+
+                            default:
+                                throw new Error('COMPRESSION_NOT_SUPPORTED');
+                        };
+                    })() : file[1])) // file
+                });
+                files.forEach((file, i) => index.writeUint32LE(murmurhash.murmur3(file.toString('utf8'), 0x31082007), checksumOffsets[i]));
+                var files = Buffer.concat(files);
+
+                var out = Buffer.concat([header, index, files]);
+                return out;
             default:
                 throw new Error('VERSION_NOT_SUPPORTED');
         };
