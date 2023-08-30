@@ -9,6 +9,11 @@ var compAlgos = { //> https://hssp.leox.dev/docs/compression/codes
     'LZMA': 'LZMA'
 };
 
+var toFixedLength = (num, len, rdx) => {
+    var str = num.toString(rdx ?? 10);
+    return ('0').repeat(len - str.length) + str;
+};
+
 class Editor { // Can hold massive amounts of data in a single file
     #files = [];
     #pwd = null;
@@ -179,7 +184,7 @@ class Editor { // Can hold massive amounts of data in a single file
      * @since 3.0.0/v4
      */
     set version(int) {
-        this.#ver = +int < 6 && 0 < +int ? +int : this.#ver;
+        this.#ver = +int < 7 && 0 < +int ? +int : this.#ver;
     }
 
     /**
@@ -521,9 +526,9 @@ class Editor { // Can hold massive amounts of data in a single file
                 if (buffer.readUint32LE(64) !== hash) throw new Error('INVALID_CHECKSUM');
                 var fileCount = buffer.readUint32LE(8);
                 var flags = [];
-                buffer.readUint8(5).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
-                buffer.readUint8(6).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
-                buffer.readUint8(7).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
+                toFixedLength(buffer.readUint8(5), 8, 2).split('').map(n => !!+n).forEach(b => flags.push(b));
+                toFixedLength(buffer.readUint8(6), 8, 2).split('').map(n => !!+n).forEach(b => flags.push(b));
+                toFixedLength(buffer.readUint8(7), 8, 2).split('').map(n => !!+n).forEach(b => flags.push(b));
                 if (flags[0]) { // check if file is encrypted
                     if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password).digest()).digest().toString('base64') !== buffer.subarray(12, 44).toString('base64')) throw new Error('INVALID_PASSWORD');
                     var iv = buffer.subarray(44, 60);
@@ -597,44 +602,185 @@ class Editor { // Can hold massive amounts of data in a single file
                     files.push(file);
                 };
 
-                if (flags[2]) {
-                    var splitFileOffset = Number(buffer.readBigUint64LE(76));
-                    if (splitFileOffset > 0) {
-                        var file = files.shift();
+                var splitFileOffset = Number(buffer.readBigUint64LE(76));
+                if (splitFileOffset > 0) {
+                    var file = files.shift();
 
-                        var fileStart = offs;
-                        offs += Number(file[1]) - splitFileOffset;
-                        var fileEnd = offs;
-                        file[1] = buffer.subarray(fileStart, fileEnd);
+                    var fileStart = offs;
+                    offs += Number(file[1]) - splitFileOffset;
+                    var fileEnd = offs;
+                    file[1] = buffer.subarray(fileStart, fileEnd);
 
+                    var idx = this.#files.findIndex(file2 => file2[0] == file[0]);
+                    if (idx == -1) {
+                        file[1] = Buffer.concat([Buffer.alloc(splitFileOffset), file[1]]);
+                        this.#files.push(file);
+                    } else {
+                        file[1].copy(this.#files[idx][1], splitFileOffset, 0);
+                    };
+                };
+
+                files.forEach((file) => {
+                    var fileStart = offs;
+                    offs += Number(file[1]);
+                    var fileEnd = offs;
+                    file[1] = buffer.subarray(fileStart, fileEnd);
+
+                    if (offs > buffer.byteLength) {
                         var idx = this.#files.findIndex(file2 => file2[0] == file[0]);
                         if (idx == -1) {
-                            file[1] = Buffer.concat([Buffer.alloc(splitFileOffset), file[1]]);
+                            file[1] = Buffer.concat([file[1], Buffer.alloc(offs - buffer.byteLength)]);
                             this.#files.push(file);
                         } else {
-                            file[1].copy(this.#files[idx][1], splitFileOffset, 0);
+                            file[1].copy(this.#files[idx][1], 0, 0);
                         };
+                    } else {
+                        this.#files.push(file);
+                    };
+                });
+                return;
+
+            case 6: // v6: Uses index/files separation
+                var header = buffer.subarray(0, 128);
+                var fileCount = header.readUint32LE(8);
+                var index = buffer.subarray(128, 128 + fileCount * 43 + header.readUint16LE(6));
+                var files = buffer.subarray(128 + fileCount * 43 + header.readUint16LE(6), buffer.byteLength);
+
+                var hash = murmurhash.murmur3(index.toString('utf8'), 0x31082007);
+                if (header.readUint32LE(64) !== hash) throw new Error('INVALID_CHECKSUM');
+                
+                var flags = toFixedLength(header.readUint8(5), 8, 2).split('').map(n => !!+n);
+                if (crypto.createHash('sha256').update(crypto.createHash('sha256').update(password !== 'undefined' ? password : '').digest()).digest().toString('base64') !== header.subarray(12, 44).toString('base64')) throw new Error('INVALID_PASSWORD');
+                var iv = header.subarray(44, 60);
+                if (flags[0]) { // check if index is encrypted
+                    var decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
+                    index = Buffer.concat([decipher.update(index), decipher.final()]);
+                };
+
+                var offs = 0;
+
+                if (flags[1]) switch (header.toString('utf8', 60, 64)) {
+                    case 'DFLT':
+                        index = Buffer.from(inflate(index));
+                        break;
+
+                    case 'LZMA':
+                        index = Buffer.from(lzma.decompress(index));
+                        break;
+
+                    default:
+                        throw new Error('COMPRESSION_NOT_SUPPORTED');
+                };
+
+                var fileArray = [];
+                for (var i = 0; i < fileCount; i++) {
+                    var file = [];
+                    file[2] = {};
+
+                    var innerOffs = 0;
+                    file[1] = index.readBigUint64LE(offs);
+                    file[2].size = file[1];
+                    offs += innerOffs + 8;
+
+                    var innerOffs = index.readUint16LE(offs);
+                    file[0] = index.toString('utf8', offs + 2, offs + 2 + innerOffs);
+                    offs += innerOffs + 2;
+
+                    innerOffs = index.readUint16LE(offs);
+                    file[2].owner = index.toString('utf8', offs + 2, offs + 2 + innerOffs);
+                    offs += innerOffs + 2;
+
+                    innerOffs = index.readUint16LE(offs);
+                    file[2].group = index.toString('utf8', offs + 2, offs + 2 + innerOffs);
+                    offs += innerOffs + 2;
+
+                    innerOffs = index.readUint32LE(offs);
+                    file[2].webLink = index.toString('utf8', offs + 4, offs + 4 + innerOffs);
+                    offs += innerOffs + 4;
+
+                    file[2].created = new Date(index.readUintLE(offs, 6));
+                    file[2].changed = new Date(index.readUintLE(offs + 6, 6));
+                    file[2].opened = new Date(index.readUintLE(offs + 12, 6));
+                    offs += 18;
+
+                    var permissions = '';
+                    for (var j = 0; j < 9; j++) {
+                        permissions += (index[offs + Math.floor(j / 8)] >> j % 8) & 1;
+                    };
+                    file[2].permissions = +parseInt(permissions, 2).toString(8);
+
+                    file[2].isFolder = !!((index[offs + 1] >> 1) & 1);
+                    file[2].hidden = !!((index[offs + 1] >> 2) & 1);
+                    file[2].system = !!((index[offs + 1] >> 3) & 1);
+                    file[2].enableBackup = !!((index[offs + 1] >> 4) & 1);
+                    file[2].forceBackup = !!((index[offs + 1] >> 5) & 1);
+                    file[2].readOnly = !!((index[offs + 1] >> 6) & 1);
+                    file[2].mainFile = !!((index[offs + 1] >> 7) & 1);
+                    file[2].encrypted = !!((index[offs + 2] >> 0) & 1);
+                    file[2].compressed = !!((index[offs + 2] >> 1) & 1);
+
+                    file[2].checksum = index.readUint32LE(offs + 3);
+
+                    offs += 7;
+
+                    fileArray.push(file);
+                };
+
+                offs = 0;
+
+                var splitFileOffset = Number(header.readBigUint64LE(76));
+                if (splitFileOffset > 0) {
+                    var file = fileArray.shift();
+
+                    var fileStart = offs;
+                    offs += Number(file[1]) - splitFileOffset;
+                    var fileEnd = offs;
+                    file[1] = files.subarray(fileStart, fileEnd);
+
+                    var idx = this.#files.findIndex(file2 => file2[0] == file[0]);
+                    if (idx == -1) {
+                        file[1] = Buffer.concat([Buffer.alloc(splitFileOffset), file[1]]);
+                        this.#files.push(file);
+                    } else {
+                        file[1].copy(this.#files[idx][1], splitFileOffset, 0);
+                    };
+                };
+
+                fileArray.forEach((file) => {
+                    var fileStart = offs;
+                    offs += Number(file[1]);
+                    var fileEnd = offs;
+                    file[1] = files.subarray(fileStart, fileEnd);
+
+                    if (file[2].encrypted) {
+                        var decipher = crypto.createDecipheriv('aes-256-cbc', crypto.createHash('sha256').update(password).digest(), iv);
+                        file[1] = Buffer.concat([decipher.update(file[1]), decipher.final()]);
+                    };
+                    if (file[2].compressed) switch (header.toString('utf8', 60, 64)) {
+                        case 'DFLT':
+                            file[1] = Buffer.from(inflate(file[1]));
+                            break;
+    
+                        case 'LZMA':
+                            file[1] = Buffer.from(lzma.decompress(file[1]));
+                            break;
+    
+                        default:
+                            throw new Error('COMPRESSION_NOT_SUPPORTED');
                     };
 
-                    files.forEach((file) => {
-                        var fileStart = offs;
-                        offs += Number(file[1]);
-                        var fileEnd = offs;
-                        file[1] = buffer.subarray(fileStart, fileEnd);
-
-                        if (offs > buffer.byteLength) {
-                            var idx = this.#files.findIndex(file2 => file2[0] == file[0]);
-                            if (idx == -1) {
-                                file[1] = Buffer.concat([file[1], Buffer.alloc(offs - buffer.byteLength)]);
-                                this.#files.push(file);
-                            } else {
-                                file[1].copy(this.#files[idx][1], 0, 0);
-                            };
-                        } else {
+                    if (offs > files.byteLength) {
+                        var idx = this.#files.findIndex(file2 => file2[0] == file[0]);
+                        if (idx == -1) {
+                            file[1] = Buffer.concat([file[1], Buffer.alloc(offs - files.byteLength)]);
                             this.#files.push(file);
+                        } else {
+                            file[1].copy(this.#files[idx][1], 0, 0);
                         };
-                    });
-                };
+                    } else {
+                        this.#files.push(file);
+                    };
+                });
                 return;
 
             default:
@@ -788,6 +934,7 @@ class Editor { // Can hold massive amounts of data in a single file
                 out.writeUint8(4, 4); // File standard version, see https://hssp.leox.dev/docs/versions | 1+4
                 // these 3 bytes are reserved for future use | 3+5
                 out.writeUint32LE(this.#files.length, 8); // File count | 4+8
+
                 for (var i = 3; i < 11; i++) {
                     out.writeUint32LE(0, i * 4); // Password hash, if not set = 0 | 32+12
                     // 12 - 44
@@ -1038,7 +1185,7 @@ class Editor { // Can hold massive amounts of data in a single file
                 var filesSize = 0;
                 this.#files.forEach(file => {
                     indexSize += (
-                        39 + // various constants
+                        43 + // various constants
 
                         (new TextEncoder().encode(file[0])).byteLength + // File name length
                         (new TextEncoder().encode(file[2].owner)).byteLength + // Owner name length
@@ -1046,12 +1193,12 @@ class Editor { // Can hold massive amounts of data in a single file
                         (new TextEncoder().encode(file[2].webLink)).byteLength // Web link length
                     );
 
-                    filesSize = file[1].byteLength;
+                    filesSize += file[1].byteLength;
                 });
                 var iv = crypto.randomBytes(16);
                 var header = Buffer.alloc(headerSize);
                 header.write('HSSP', 0, 'utf8'); // Magic value :) | 4+0
-                header.writeUint8(5, 4); // File standard version, see https://hssp.leox.dev/docs/versions | 1+4
+                header.writeUint8(6, 4); // File standard version, see https://hssp.leox.dev/docs/versions | 1+4
                 header.writeUint8(parseInt([
                     this.#enc, // F1: is encrypted
                     this.#cmp, // F2: is compressed
@@ -1061,30 +1208,11 @@ class Editor { // Can hold massive amounts of data in a single file
                     false, // F6: unallocated
                     false, // F7: unallocated
                     false // F8: unallocated
-                ].map(b => +b).join(''), 2), 5); // Flags #1, see https://hssp.leox.dev/docs/flags | 1+5
-                header.writeUint8(parseInt([
-                    false, // F9: unallocated
-                    false, // F10: unallocated
-                    false, // F11: unallocated
-                    false, // F12: unallocated
-                    false, // F13: unallocated
-                    false, // F14: unallocated
-                    false, // F15: unallocated
-                    false // F16: unallocated
-                ].map(b => +b).join(''), 2), 6); // Flags #2, see https://hssp.leox.dev/docs/flags | 1+6
-                header.writeUint8(parseInt([
-                    false, // F17: unallocated
-                    false, // F18: unallocated
-                    false, // F19: unallocated
-                    false, // F20: unallocated
-                    false, // F21: unallocated
-                    false, // F22: unallocated
-                    false, // F23: unallocated
-                    false // F24: unallocated
-                ].map(b => +b).join(''), 2), 7); // Flags #3, see https://hssp.leox.dev/docs/flags | 1+7
+                ].map(b => +b).join(''), 2), 5); // Flags, see https://hssp.leox.dev/docs/flags | 1+5
+                // Index length - 43 * file count | 2+6
                 header.writeUint32LE(this.#files.length, 8); // File count | 4+8
-                crypto.createHash('sha256').update(crypto.createHash('sha256').update(this.#pwd).digest()).digest().copy(header, 12); // Password hash | 32+12
-                iv.copy(outBuf, 44); // Encryption initialization vector (iv) | 16+44
+                crypto.createHash('sha256').update(crypto.createHash('sha256').update(this.#pwd ?? '').digest()).digest().copy(header, 12); // Password hash | 32+12
+                iv.copy(header, 44); // Encryption initialization vector (iv) | 16+44
                 header.write(this.#compAlgo, 60, 'utf8'); // Used compression algorithm, NONE if not set | 4+60
                 // this file is not split | 28+68
                 header.write(this.#comment.slice(0, 16), 96, 'utf8'); // Comment | 16+96
@@ -1092,10 +1220,12 @@ class Editor { // Can hold massive amounts of data in a single file
 
                 var index = Buffer.alloc(indexSize);
                 var offs = 0; // Start
+                var sizeOffsets = [];
                 var checksumOffsets = [];
 
                 // index
                 this.#files.forEach(file => {
+                    sizeOffsets.push(offs);
                     var innerOffs = 0;
                     index.writeBigUint64LE(BigInt(file[1].byteLength), offs);
                     offs += innerOffs + 8;
@@ -1144,6 +1274,34 @@ class Editor { // Can hold massive amounts of data in a single file
                     offs += 7;
                 });
 
+                // files
+                var files = [];
+                this.#files.forEach(file => {
+                    files.push(((cFile) => file[2].encrypted ? (() => {
+                        var cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
+                        return Buffer.concat([cipher.update(cFile), cipher.final()]);
+                    })() : cFile)((file[2].compressed ? (() => {
+                        switch (this.#compAlgo) {
+                            case 'DFLT':
+                                return Buffer.from(deflate(file[1], { level: this.#compLvl }));
+
+                            case 'LZMA':
+                                return Buffer.from(lzma.compress(file[1], this.#compLvl));
+
+                            case 'NONE':
+                                return file[1];
+
+                            default:
+                                throw new Error('COMPRESSION_NOT_SUPPORTED');
+                        };
+                    })() : file[1]))); // file
+                });
+                files.forEach((file, i) => {
+                    index.writeBigUint64LE(BigInt(file.byteLength), sizeOffsets[i]);
+                    index.writeUint32LE(murmurhash.murmur3(file.toString('utf8'), 0x31082007), checksumOffsets[i]);
+                });
+                var files = Buffer.concat(files);
+
                 if (this.#cmp) switch (this.#compAlgo) {
                     case 'DFLT':
                         index = Buffer.from(deflate(index, { level: this.#compLvl }));
@@ -1166,37 +1324,8 @@ class Editor { // Can hold massive amounts of data in a single file
                     index = Buffer.concat([cipher.update(index), cipher.final()]);
                 };
                 indexSize = index.byteLength;
+                header.writeUint16LE(indexSize - 43 * this.#files.length, 6); // (required for calculating index length)
                 header.writeUint32LE(murmurhash.murmur3(index.toString('utf8'), 0x31082007), 64); // checksum
-
-                // files
-                var files = [];
-                this.#files.forEach(file => {
-                    var newByteLength = file[1].byteLength;
-                    files.push((cFile) => file[2].encrypted ? (() => {
-                        var cipher = crypto.createCipheriv('aes-256-cbc', crypto.createHash('sha256').update(this.#pwd).digest(), iv);
-                        return encrypted = Buffer.concat([cipher.update(cFile), cipher.final()]);
-                    })() : cFile)((file[2].compressed ? (() => {
-                        switch (this.#compAlgo) {
-                            case 'DFLT':
-                                var cFile = Buffer.from(deflate(file[1], { level: this.#compLvl }));
-                                newByteLength = cFile.byteLength;
-                                return cFile;
-
-                            case 'LZMA':
-                                var cFile = Buffer.from(lzma.compress(file[1], this.#compLvl));
-                                newByteLength = cFile.byteLength;
-                                return cFile;
-
-                            case 'NONE':
-                                return file[1];
-
-                            default:
-                                throw new Error('COMPRESSION_NOT_SUPPORTED');
-                        };
-                    })() : file[1])) // file
-                });
-                files.forEach((file, i) => index.writeUint32LE(murmurhash.murmur3(file.toString('utf8'), 0x31082007), checksumOffsets[i]));
-                var files = Buffer.concat(files);
 
                 var out = Buffer.concat([header, index, files]);
                 return out;
@@ -1219,7 +1348,7 @@ class Editor { // Can hold massive amounts of data in a single file
      * @throws {Error} "COMPRESSION_NOT_SUPPORTED" if the compression algorithm is not supported
      */
     toBuffers(count) {
-        if (this.#ver !== 4 || this.#ver !== 5) throw new Error('VERSION_NOT_SUPPORTED');
+        if (this.#ver !== 4 && this.#ver !== 5) throw new Error('VERSION_NOT_SUPPORTED');
         if (count < 1) throw new Error('DUDE_YOU_CANNOT_SPLIT_A_FILE_INTO_LESS_THAN_ONE_PART');
         if (this.#files.length < 1) throw new Error('DUDE_YOU_CANNOT_SPLIT_SOMETHING_THAT_IS_NOT_THERE');
         if ((() => {
@@ -1767,7 +1896,7 @@ module.exports = {
                 var hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
                 metadata.hash.given = buffer.readUint32LE(64);
                 metadata.hash.calculated = hash;
-                if (buffer.readUint32LE(4) !== hash) metadata.hash.valid = false;
+                if (buffer.readUint32LE(64) !== hash) metadata.hash.valid = false;
                 var fileCount = buffer.readUint32LE(8);
 
                 switch (buffer.toString('utf8', 60, 64)) {
@@ -1879,12 +2008,12 @@ module.exports = {
                 var hash = murmurhash.murmur3(inp.toString('utf8'), 0x31082007);
                 metadata.hash.given = buffer.readUint32LE(64);
                 metadata.hash.calculated = hash;
-                if (buffer.readUint32LE(4) !== hash) metadata.hash.valid = false;
+                if (buffer.readUint32LE(64) !== hash) metadata.hash.valid = false;
                 var fileCount = buffer.readUint32LE(8);
                 var flags = [];
-                buffer.readUint8(5).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
-                buffer.readUint8(6).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
-                buffer.readUint8(7).toString(2).split('').map(n => !!n).forEach(b => flags.push(b));
+                toFixedLength(buffer.readUint8(5), 8, 2).split('').map(n => !!+n).forEach(b => flags.push(b));
+                toFixedLength(buffer.readUint8(6), 8, 2).split('').map(n => !!+n).forEach(b => flags.push(b));
+                toFixedLength(buffer.readUint8(7), 8, 2).split('').map(n => !!+n).forEach(b => flags.push(b));
 
                 if (flags[1]) switch (buffer.toString('utf8', 60, 64)) {
                     case 'DFLT':

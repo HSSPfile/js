@@ -13,6 +13,8 @@
 ###### [Read more about the HSSP file format](https://hssp.leox.dev/)
 ---
 
+# WARNING: v4.0.0+ is not ready for web yet! V6 (v5.0.0+) Splitting is not done yet!
+
 ## Usage
 ### Node.js
 
@@ -28,7 +30,7 @@ Continue with [learning about the API](#api).
 ### Web
 - Load HSSP for JavaScript with:
 ```html
-<script src="https://cdn.jsdelivr.net/npm/hssp@4/web.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hssp@3/web.min.js"></script>
 ```
 - Create an editor:
 ```js
