@@ -1,3 +1,5 @@
 {
-    "editor.fontFamily": "'Cascadia Code', 'monospace', monospace"
+  "editor.fontFamily": "'Cascadia Code', 'monospace', monospace",
+  "editor.tabSize": 2,
+  "markiscodecoverage.coverageThreshold": 100
 }

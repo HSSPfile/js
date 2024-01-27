@@ -130,7 +130,7 @@ dist
 .pnp.*
 
 # GitHub
-.github
+#.github
 
 # VSCode
-.vscode
+#.vscode

@@ -1,27 +1,49 @@
 {
-    "name": "hssp",
-    "version": "4.0.1",
-    "description": "Create, edit and read HSSP files in pure JavaScript",
-    "main": "main.js",
-    "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "repository": "HSSPfile/js",
-    "keywords": [
-        "HSSP",
-        "HugeSizeSupportingPackage",
-        "Huge",
-        "Package"
-    ],
-    "author": "HSSP",
-    "license": "MIT",
-    "bugs": {
-        "url": "https://github.com/HSSPfile/js/issues"
-    },
-    "homepage": "https://hssp.leox.dev/",
-    "dependencies": {
-        "lzma": "^2.3.2",
-        "murmurhash-js": "^1.0.0",
-        "pako": "^2.1.0"
-    }
+  "name": "hssp",
+  "version": "5.0.0",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "description": "Create, edit and read HSSP files in pure JavaScript",
+  "main": "src/main.js",
+  "scripts": {
+    "test": "mocha",
+    "lint": "eslint .",
+    "format": "prettier . -w",
+    "fullcoverage": "nyc check-coverage",
+    "coverage": "nyc mocha"
+  },
+  "repository": "HSSPfile/js",
+  "keywords": [
+    "HSSP",
+    "HugeSizeSupportingPackage",
+    "Huge",
+    "Package"
+  ],
+  "author": "HSSP",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/HSSPfile/js/issues"
+  },
+  "homepage": "https://hssp.leox.dev/",
+  "dependencies": {
+    "lzma": "^2.3.2",
+    "murmurhash-js": "^1.0.0",
+    "pako": "^2.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.55.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-node": "^4.1.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-jsx-a11y": "^6.8.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "mocha": "^10.2.0",
+    "nyc": "^15.1.0",
+    "prettier": "^3.1.0"
+  }
 }

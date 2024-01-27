@@ -1,0 +1,11 @@
+{
+  "extension": [".js"],
+  "include": ["src/**/*.js"],
+  "exclude": ["node_modules", "**/*.test.js"],
+  "reporter": ["lcov", "text", "html"],
+
+  "statements": 100,
+  "branches": 100,
+  "functions": 100,
+  "lines": 100
+}

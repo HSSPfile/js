@@ -1,0 +1,11 @@
+{
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "extends": ["airbnb-base", "prettier", "plugin:node/recommended"],
+  "plugins": ["prettier"],
+  "parserOptions": {
+    "ecmaVersion": 14
+  }
+}
