@@ -1,14 +1,38 @@
+/* eslint-disable node/no-unpublished-require */
 /* eslint-env node, mocha */
 
 const assert = require('assert');
+const { compress, decompress } = require('lzma');
+const { deflate, inflate } = require('pako');
 const { create, createSplit } = require('../src/idxd-flgd/create');
 const { parse } = require('../src/idxd-flgd/parse');
 const { ContentFile } = require('../src/file');
+const { Compression } = require('../src/compression');
 const {
   UnknownCompressionError,
   InvalidCompressionLevelError,
-  InvalidFileCountError
+  InvalidFileCountError,
 } = require('../src/errors');
+
+const compression = new Compression();
+compression.add(
+  'lzma',
+  {
+    idxd: 'LZMA',
+    sprd: 0x4950,
+  },
+  (data, level) => Buffer.from(compress(data, { level })),
+  (data) => Buffer.from(decompress(data)),
+);
+compression.add(
+  'deflate',
+  {
+    idxd: 'DFLT',
+    sprd: 0x4446,
+  },
+  (data, level) => Buffer.from(deflate(data, { level })),
+  (data) => Buffer.from(inflate(data)),
+);
 
 describe('idxd: create', () => {
   it('should create a file with one file in it', () => {
@@ -81,8 +105,9 @@ describe('idxd: create', () => {
     const parsed = parse(
       create(
         [new ContentFile('test.txt', Buffer.from('Hello, world!', 'utf8'))],
-        { compressionAlgorithm: 'lzma' },
+        { compressionAlgorithm: 'lzma', compression },
       ),
+      { compression }
     );
     assert.strictEqual(
       parsed.files[0].contents.toString('utf8'),
@@ -94,8 +119,9 @@ describe('idxd: create', () => {
     const parsed = parse(
       create(
         [new ContentFile('test.txt', Buffer.from('Hello, world!', 'utf8'))],
-        { compressionAlgorithm: 'deflate' },
+        { compressionAlgorithm: 'deflate', compression },
       ),
+      { compression }
     );
     assert.strictEqual(
       parsed.files[0].contents.toString('utf8'),
@@ -107,9 +133,9 @@ describe('idxd: create', () => {
     const parsed = parse(
       create(
         [new ContentFile('test.txt', Buffer.from('Hello, world!', 'utf8'))],
-        { compressionAlgorithm: 'lzma', password: 'Password' },
+        { compressionAlgorithm: 'lzma', password: 'Password', compression },
       ),
-      { password: 'Password' },
+      { password: 'Password', compression },
     );
     assert.strictEqual(
       parsed.files[0].contents.toString('utf8'),
@@ -175,7 +201,8 @@ describe('idxd: create', () => {
     const parsed = [parse(created[0]), parse(created[1])];
 
     assert.strictEqual(
-      parsed[0].files[0].contents.toString('utf8') + parsed[1].files[0].contents.toString('utf8'),
+      parsed[0].files[0].contents.toString('utf8') +
+        parsed[1].files[0].contents.toString('utf8'),
       'Hello, world!',
     );
     assert.strictEqual(parsed[0].nextChecksum, parsed[1].checksum);
@@ -184,15 +211,15 @@ describe('idxd: create', () => {
 
   it('should create a split file (3 files)', () => {
     const created = createSplit(
-      [
-        new ContentFile('test.txt', Buffer.from('Hello, world!', 'utf8')),
-      ],
+      [new ContentFile('test.txt', Buffer.from('Hello, world!', 'utf8'))],
       3,
     );
     const parsed = [parse(created[0]), parse(created[1]), parse(created[2])];
 
     assert.strictEqual(
-      parsed[0].files[0].contents.toString('utf8') + parsed[1].files[0].contents.toString('utf8')+ parsed[2].files[0].contents.toString('utf8'),
+      parsed[0].files[0].contents.toString('utf8') +
+        parsed[1].files[0].contents.toString('utf8') +
+        parsed[2].files[0].contents.toString('utf8'),
       'Hello, world!',
     );
     assert.strictEqual(parsed[0].nextChecksum, parsed[1].checksum);
@@ -211,7 +238,8 @@ describe('idxd: create', () => {
 
     assert.ok(parsed[0].files[0].attributes.isDirectory);
     assert.strictEqual(
-      parsed[0].files[1].contents.toString('utf8') + parsed[1].files[0].contents.toString('utf8'),
+      parsed[0].files[1].contents.toString('utf8') +
+        parsed[1].files[0].contents.toString('utf8'),
       'Hello, world!',
     );
   });

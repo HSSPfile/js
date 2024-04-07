@@ -12,6 +12,7 @@ const { ContentFile } = require('../file');
  * @param {string} [options.password] The password to encrypt the file.
  * @returns {Buffer} The created HSSP file.
  * @since v5.0.0
+ * @preserve
  */
 function create(files, options) {
   const header = Buffer.alloc(options?.dhdr ?? false ? 128 : 64);

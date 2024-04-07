@@ -1,4 +1,8 @@
 class ContentFile {
+  path = '';
+  
+  contents = Buffer.alloc(0);
+
   #attrib;
 
   /**
@@ -21,6 +25,7 @@ class ContentFile {
    * @param {boolean} [attrib.isMainFile=false]
    * @param {number} [attrib.preMissingBytes=0]
    * @param {number} [attrib.afterMissingBytes=0]
+   * @preserve
    */
   constructor(path, contents, attrib) {
     this.path = path;
@@ -47,6 +52,7 @@ class ContentFile {
 
   /**
    * @returns {{owner: string, group: string, webLink: string, created: Date, modified: Date, accessed: Date, permissions: number, isDirectory: boolean, isHidden: boolean, isSystem: boolean, enableBackup: boolean, requireBackup: boolean, isReadOnly: boolean, isMainFile: boolean, preMissingBytes: number, afterMissingBytes: number}}}
+   * @preserve
    */
   get attributes() {
     return this.#attrib;
@@ -70,6 +76,7 @@ class ContentFile {
    * @param {boolean} [attrib.isMainFile=false]
    * @param {number} [attrib.preMissingBytes=0]
    * @param {number} [attrib.afterMissingBytes=0]
+   * @preserve
    */
   set attributes(attrib) {
     /* istanbul ignore next */

@@ -1,14 +1,39 @@
+/* eslint-disable node/no-unpublished-require */
 /* eslint-env node, mocha */
 
 const assert = require('assert');
 const fs = require('fs');
+const { compress, decompress } = require('lzma');
+const { deflate, inflate } = require('pako');
 const { parse } = require('../src/idxd-flgd/parse');
+const { Compression } = require('../src/compression');
 const {
   MissingPasswordError,
   InvalidPasswordError,
   InvalidChecksumError,
   UnknownCompressionError,
 } = require('../src/errors');
+
+const compression = new Compression();
+compression.add(
+  'lzma',
+  {
+    idxd: 'LZMA',
+    sprd: 0x4950,
+  },
+  (data, level) => Buffer.from(compress(data, { level })),
+  (data) => Buffer.from(decompress(data)),
+);
+compression.add(
+  'deflate',
+  {
+    idxd: 'DFLT',
+    sprd: 0x4446,
+  },
+  (data, level) => Buffer.from(deflate(data, { level })),
+  (data) => Buffer.from(inflate(data)),
+);
+
 
 describe('idxd: parse', () => {
   it('should parse a file with one file in it', () => {
@@ -32,19 +57,19 @@ describe('idxd: parse', () => {
 
   it('should parse a LZMA-compressed file', () => {
     const idxd = fs.readFileSync('test/samples/idxd-comp-lzma.hssp');
-    const { files } = parse(idxd);
+    const { files } = parse(idxd, { compression });
     assert.strictEqual(files[0].contents.toString('utf8'), 'Hello, world!');
   });
 
   it('should parse a DEFLATE-compressed file', () => {
     const idxd = fs.readFileSync('test/samples/idxd-comp-dflt.hssp');
-    const { files } = parse(idxd);
+    const { files } = parse(idxd, { compression });
     assert.strictEqual(files[0].contents.toString('utf8'), 'Hello, world!');
   });
 
   it('should parse a compressed and encrypted file', () => {
     const idxd = fs.readFileSync('test/samples/idxd-comp-enc.hssp');
-    const { files } = parse(idxd, { password: 'Password' });
+    const { files } = parse(idxd, { password: 'Password', compression });
     assert.strictEqual(files[0].contents.toString('utf8'), 'Hello, world!');
   });
 

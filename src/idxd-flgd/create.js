@@ -1,10 +1,8 @@
 const murmur = require('murmurhash-js').murmur3;
 const crypto = require('crypto');
-const lzma = require('lzma');
-const { deflate } = require('pako');
+const { Compression } = require('../compression');
 const { bitsToByte } = require('../bit');
 const {
-  UnknownCompressionError,
   InvalidCompressionLevelError,
   InvalidFileCountError,
 } = require('../errors');
@@ -17,6 +15,7 @@ const { ContentFile } = require('../file');
  * @param {Object} [options] Creation options.
  * @param {number} [options.compressionLevel=5] The compression level to use.
  * @param {string} [options.compressionAlgorithm] The compression algorithm to use.
+ * @param {Compression} [options.compression] The compression instance to use.
  * @param {string} [options.password] The password to encrypt the file.
  * @param {string} [options.comment] The comment to add to the file.
  * @param {boolean} [options.flgd=false] Whether to create a v5 file instead of a v4 file.
@@ -29,6 +28,7 @@ const { ContentFile } = require('../file');
  * @param {boolean} [options.__split.isLast] Whether this is the last file.
  * @returns {Buffer} The created HSSP file.
  * @since v5.0.0
+ * @preserve
  */
 function create(files, options) {
   const header = Buffer.alloc(128);
@@ -51,22 +51,26 @@ function create(files, options) {
   if (options?.flgd) header.writeUint8(5, 4);
   header.writeUint32LE(files.length, 8);
   /* eslint-disable no-underscore-dangle */
-  if (options?.flgd) header.writeUint8(bitsToByte([
-    !!(options?.password),
-    !!(options?.compressionAlgorithm),
-    !!(options?.__split),
-    options?.__split.isFirst ?? true,
-    options?.__split.isLast ?? true,
-    false,
-    false,
-    false,
-  ]), 5);
+  if (options?.flgd)
+    header.writeUint8(
+      bitsToByte([
+        !!options?.password,
+        !!options?.compressionAlgorithm,
+        !!options?.__split,
+        options?.__split.isFirst ?? true,
+        options?.__split.isLast ?? true,
+        false,
+        false,
+        false,
+      ]),
+      5,
+    );
   if (options?.__split) {
     header.writeBigUint64LE(BigInt(options.__split.total), 68);
     header.writeBigUint64LE(BigInt(options.__split.offset), 76);
     header.writeUint32LE(options.__split.chkPrev, 84);
     header.writeUint32LE(options.__split.idx, 92);
-  };
+  }
   /* eslint-enable no-underscore-dangle */
   header.write(options?.comment ?? '', 96, 16, 'utf8');
   header.write('hssp 5.0.0 @ npm', 112, 16, 'utf8');
@@ -148,24 +152,9 @@ function create(files, options) {
   )
     throw new InvalidCompressionLevelError(options?.compressionLevel);
 
-  if (options?.compressionAlgorithm)
-    switch (options.compressionAlgorithm) {
-      case 'lzma':
-        header.write('LZMA', 60, 4, 'utf8');
-        contents = Buffer.from(
-          lzma.compress(contents, options.compressionLevel ?? 5),
-        );
-        break;
-      case 'deflate':
-        header.write('DFLT', 60, 4, 'utf8');
-        contents = Buffer.from(
-          deflate(contents, { level: options.compressionLevel ?? 5 }),
-        );
-        break;
-      default:
-        throw new UnknownCompressionError(options.compressionAlgorithm);
-    }
-  else header.write('NONE', 60, 4, 'utf8');
+  const compression = options?.compression ?? new Compression();
+  contents = compression.compress(options?.compressionAlgorithm, contents, options?.compressionLevel ?? 5);
+  header.write(compression.getIdxdCode(options?.compressionAlgorithm), 60, 4, 'utf8');
 
   if (options?.password) {
     const iv = crypto.randomBytes(16);
@@ -205,9 +194,10 @@ function create(files, options) {
  * @since v5.0.0
  */
 function createSplit(files, count, options) {
-  const totalLength = files.map((f) => f.contents?.byteLength ?? 0).reduce((a, b) => a + b, 0);
-  if (count < 1 || count > totalLength)
-    throw new InvalidFileCountError(count);
+  const totalLength = files
+    .map((f) => f.contents?.byteLength ?? 0)
+    .reduce((a, b) => a + b, 0);
+  if (count < 1 || count > totalLength) throw new InvalidFileCountError(count);
 
   const avgLength = Math.floor(totalLength / count);
 
@@ -223,39 +213,50 @@ function createSplit(files, count, options) {
     const maxLength = avgLength + (i === count - 1 ? totalLength % count : 0);
 
     while (length <= maxLength && file < files.length) {
-      filesIncluded.push(new ContentFile(files[file].path, files[file].contents?.subarray(offset) ?? null, files[file].attributes));
+      filesIncluded.push(
+        new ContentFile(
+          files[file].path,
+          files[file].contents?.subarray(offset) ?? null,
+          files[file].attributes,
+        ),
+      );
       length += (files[file].contents?.byteLength ?? 0) - offset;
       if (length <= maxLength) offset = 0;
       file += 1;
-    };
+    }
 
-    if (length > maxLength) { // TODO: Improve this
+    if (length > maxLength) {
+      // TODO: Improve this
       file -= 1;
-      offset += maxLength + length % maxLength;
-      length = maxLength + length % maxLength;
-      filesIncluded[filesIncluded.length - 1].contents = filesIncluded[filesIncluded.length - 1].contents.subarray(0, length);
-    };
+      offset += maxLength + (length % maxLength);
+      length = maxLength + (length % maxLength);
+      filesIncluded[filesIncluded.length - 1].contents = filesIncluded[
+        filesIncluded.length - 1
+      ].contents.subarray(0, length);
+    }
 
-    result.push(create(filesIncluded, {
-      ...options,
-      __split: {
-        total: files.length,
-        offset,
-        chkPrev,
-        idx: i,
-        isFirst: i === 0,
-        isLast: i === count - 1,
-      },
-    }));
+    result.push(
+      create(filesIncluded, {
+        ...options,
+        __split: {
+          total: files.length,
+          offset,
+          chkPrev,
+          idx: i,
+          isFirst: i === 0,
+          isLast: i === count - 1,
+        },
+      }),
+    );
 
     chkPrev = result[result.length - 1].readUint32LE(64);
-  };
+  }
 
   let chkNext = 0;
   for (let i = result.length - 1; i >= 0; i -= 1) {
     result[i].writeUint32LE(chkNext, 88);
     chkNext = result[i].readUint32LE(64);
-  };
+  }
 
   return result;
 }

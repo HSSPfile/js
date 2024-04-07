@@ -11,7 +11,15 @@
     "lint": "eslint .",
     "format": "prettier . -w",
     "fullcoverage": "nyc check-coverage",
-    "coverage": "nyc mocha"
+    "coverage": "nyc mocha",
+    "node-build": "rollup --config rollup.config.mjs",
+    "node-min": "terser dist/hssp.js -o dist/hssp.min.js",
+    "browser-build": "webpack --config webpack.config.js",
+    "browser-min": "terser dist/hssp-web.js -o dist/hssp-web.min.js",
+    "license": "node ./scripts/add-license.js",
+
+    "build": "npm run node-build && npm run node-min && npm run browser-build && npm run browser-min && npm run license",
+    "check": "npm run lint && npm run test && npm run fullcoverage"
   },
   "repository": "HSSPfile/js",
   "keywords": [
@@ -27,11 +35,12 @@
   },
   "homepage": "https://hssp.leox.dev/",
   "dependencies": {
-    "lzma": "^2.3.2",
-    "murmurhash-js": "^1.0.0",
-    "pako": "^2.1.0"
+    "murmurhash-js": "^1.0.0"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "buffer": "^6.0.3",
+    "crypto-browserify": "^3.12.0",
     "eslint": "^8.55.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-node": "^4.1.0",
@@ -44,6 +53,15 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "mocha": "^10.2.0",
     "nyc": "^15.1.0",
-    "prettier": "^3.1.0"
+    "path-browserify": "^1.0.1",
+    "prettier": "^3.1.0",
+    "rollup": "^4.9.6",
+    "stream-browserify": "^3.0.0",
+    "terser": "^5.27.0",
+    "webpack": "^5.90.1",
+    "webpack-cli": "^5.1.4",
+
+    "lzma": "^2.3.2",
+    "pako": "^2.1.0"
   }
 }

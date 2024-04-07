@@ -19,6 +19,7 @@ const { ContentFile } = require('../file');
  * @throws {InvalidPasswordError} The password is incorrect.
  * @throws {MissingPasswordError} The password is missing.
  * @since v5.0.0
+ * @preserve
  */
 function parse(buf, options) {
   const header = buf.subarray(0, options?.dhdr ?? false ? 128 : 64);

@@ -1,23 +1,23 @@
 const murmur = require('murmurhash-js').murmur3;
 const crypto = require('crypto');
-const lzma = require('lzma');
-const { inflate } = require('pako');
 const {
   InvalidChecksumError,
   InvalidPasswordError,
   MissingPasswordError,
   UnsafeOperationError,
-  UnknownCompressionError,
 } = require('../errors');
+const { Compression } = require('../compression');
 const { ContentFile } = require('../file');
 const { byteToBits } = require('../bit');
 
 /**
  * @param {Buffer} buf
  * @param {Object} [options]
- * @param {boolean} [options?.flgd=false]
+ * @param {boolean} [options.flgd=false]
  * @param {string} [options.password]
+ * @param {Compression} [options.compression] The compression instance to use.
  * @param {boolean} [options.allowUnsafeOperations=false]
+ * @preserve
  */
 function parse(buf, options) {
   const header = buf.subarray(0, 128);
@@ -30,7 +30,11 @@ function parse(buf, options) {
 
   const flags = byteToBits(header.readUint8(5));
 
-  if (options?.flgd ? flags[0] : !header.subarray(12, 60).equals(Buffer.alloc(48).fill(0))) {
+  if (
+    options?.flgd
+      ? flags[0]
+      : !header.subarray(12, 60).equals(Buffer.alloc(48).fill(0))
+  ) {
     const pwdhashGiven = header.subarray(12, 44).toString('hex');
     if (!options?.password) throw new MissingPasswordError(pwdhashGiven);
     const pwdhashCalculated = crypto
@@ -52,21 +56,16 @@ function parse(buf, options) {
 
   let offs = 0;
 
-  if (options?.flgd ? flags[1] : true) switch (buf.toString('utf8', 60, 64)) {
-    case 'DFLT':
-      contents = Buffer.from(inflate(contents));
-      break;
+  if (options?.flgd ? flags[1] : true) {
+    const algorithm = buf.toString('utf8', 60, 64);
 
-    case 'LZMA':
-      contents = Buffer.from(lzma.decompress(contents));
-      break;
-
-    case 'NONE':
-      if (options?.flgd) throw new UnknownCompressionError(buf.toString('utf8', 60, 64));
-      break;
-
-    default:
-      throw new UnknownCompressionError(buf.toString('utf8', 60, 64));
+    if (!(algorithm === 'NONE' && !options?.flgd)) { // TODO: make this more readable, every time I change something here half of the tests fail
+      const compression = options?.compression ?? new Compression();
+      contents = compression.decompress(
+        compression.getByIdxdCode(algorithm),
+        contents,
+      );
+    }
   }
 
   const index = [];

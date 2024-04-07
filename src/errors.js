@@ -39,9 +39,11 @@ class InvalidCompressionLevelError extends Error {
 
 class InvalidFileCountError extends Error {
   constructor(actual) {
-    super(`Invalid file count: got ${actual}, may not be less than 1 or more than total bytes that should be included in the archive`);
+    super(
+      `Invalid file count: got ${actual}, may not be less than 1 or more than total bytes that should be included in the archive`,
+    );
   }
-};
+}
 
 module.exports = {
   InvalidChecksumError,

@@ -1,7 +1,7 @@
 {
   "extension": [".js"],
   "include": ["src/**/*.js"],
-  "exclude": ["node_modules", "**/*.test.js"],
+  "exclude": ["node_modules", "**/*.test.js", "coverage", "dist", "scripts"],
   "reporter": ["lcov", "text", "html"],
 
   "statements": 100,
