@@ -1,5 +1,6 @@
 const murmur = require('murmurhash-js').murmur3;
 const crypto = require('crypto');
+const { Buffer } = require('buffer');
 // eslint-disable-next-line no-unused-vars
 const { ContentFile } = require('../file');
 

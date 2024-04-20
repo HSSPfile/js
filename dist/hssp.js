@@ -4,7 +4,7 @@
 
 MIT License
 
-Copyright (c) 2023-2024 HSSP Contributors
+Copyright (c) 2023-2024 Leonard Lesinski
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -30,13 +30,139 @@ SOFTWARE.
 
 'use strict';
 
-require('buffer');
-var require$$0 = require('murmurhash-js');
+var require$$2 = require('buffer');
 var require$$1 = require('crypto');
+var require$$0 = require('murmurhash-js');
 
 function getDefaultExportFromCjs (x) {
 	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
 }
+
+/* eslint-disable max-classes-per-file */
+
+/**
+ * @typedef {Object} FileAttributes
+ * @property {string} [owner='']
+ * @property {string} [group='']
+ * @property {string} [webLink='']
+ * @property {Date} [created=new Date(0)]
+ * @property {Date} [modified=new Date(0)]
+ * @property {Date} [accessed=new Date(0)]
+ * @property {number} [permissions=0]
+ * @property {boolean} [isDirectory=false]
+ * @property {boolean} [isHidden=false]
+ * @property {boolean} [isSystem=false]
+ * @property {boolean} [enableBackup=true]
+ * @property {boolean} [requireBackup=false]
+ * @property {boolean} [isReadOnly=false]
+ * @property {boolean} [isMainFile=false]
+ * @property {number} [preMissingBytes=0]
+ * @property {number} [afterMissingBytes=0]
+ * @preserve
+ */
+let FileAttributes$1 = class FileAttributes {
+  owner = '';
+
+  group = '';
+
+  webLink = '';
+
+  created = new Date(0);
+
+  modified = new Date(0);
+
+  accessed = new Date(0);
+
+  permissions = 0;
+
+  isDirectory = false;
+
+  isHidden = false;
+
+  isSystem = false;
+
+  enableBackup = true;
+
+  requireBackup = false;
+
+  isReadOnly = false;
+
+  isMainFile = false;
+
+  preMissingBytes = 0;
+
+  afterMissingBytes = 0;
+
+  constructor(attrib) {
+    this.owner = attrib?.owner ?? '';
+    this.group = attrib?.group ?? '';
+    this.webLink = attrib?.webLink ?? '';
+    this.created = attrib?.created ?? new Date(0);
+    this.modified = attrib?.modified ?? new Date(0);
+    this.accessed = attrib?.accessed ?? new Date(0);
+    this.permissions = attrib?.permissions ?? 0;
+    this.isDirectory = attrib?.isDirectory ?? false;
+    this.isHidden = attrib?.isHidden ?? false;
+    this.isSystem = attrib?.isSystem ?? false;
+    this.enableBackup = attrib?.enableBackup ?? true;
+    this.requireBackup = attrib?.requireBackup ?? false;
+    this.isReadOnly = attrib?.isReadOnly ?? false;
+    this.isMainFile = attrib?.isMainFile ?? false;
+    this.preMissingBytes = attrib?.preMissingBytes ?? 0;
+    this.afterMissingBytes = attrib?.afterMissingBytes ?? 0;
+  }
+};
+
+let ContentFile$4 = class ContentFile {
+  path = '';
+
+  contents = Buffer.alloc(0);
+
+  #attrib;
+
+  /**
+   * @param {string} path
+   * @param {Buffer} contents
+   * @param {FileAttributes} [attrib]
+   * @preserve
+   */
+  constructor(path, contents, attrib) {
+    this.path = path;
+    this.contents = contents;
+    this.#attrib = new FileAttributes$1(attrib);
+  }
+
+  /**
+   * @returns {FileAttributes}
+   * @preserve
+   */
+  get attributes() {
+    return this.#attrib;
+  }
+
+  /**
+   * @param {FileAttributes} [attrib]
+   * @preserve
+   */
+  set attributes(attrib) {
+    /* istanbul ignore next */
+    this.#attrib = new FileAttributes$1(attrib);
+  }
+};
+
+var file = { ContentFile: ContentFile$4, FileAttributes: FileAttributes$1 };
+
+/**
+ * @typedef {Object} PackOptions
+ * @property {number} [compressionLevel=5] The compression level to use.
+ * @property {string} [compressionAlgorithm] The compression algorithm to use.
+ * @property {string} [password] The password to encrypt the files.
+ * @property {string} [comment] The comment to add to the files.
+ * @preserve
+ */
+
+let PackOptions$1 = class PackOptions {};
+var packoptions = { PackOptions: PackOptions$1 };
 
 /* eslint-disable max-classes-per-file */
 
@@ -95,120 +221,16 @@ var errors = {
   InvalidFileCountError: InvalidFileCountError$1,
 };
 
-let ContentFile$3 = class ContentFile {
-  path = '';
-  
-  contents = Buffer.alloc(0);
-
-  #attrib;
-
-  /**
-   * @param {string} path
-   * @param {Buffer} contents
-   * @param {Object} [attrib={}]
-   * @param {string} [attrib.owner='']
-   * @param {string} [attrib.group='']
-   * @param {string} [attrib.webLink='']
-   * @param {Date} [attrib.created=new Date(0)]
-   * @param {Date} [attrib.modified=new Date(0)]
-   * @param {Date} [attrib.accessed=new Date(0)]
-   * @param {number} [attrib.permissions=0]
-   * @param {boolean} [attrib.isDirectory=false]
-   * @param {boolean} [attrib.isHidden=false]
-   * @param {boolean} [attrib.isSystem=false]
-   * @param {boolean} [attrib.enableBackup=true]
-   * @param {boolean} [attrib.requireBackup=false]
-   * @param {boolean} [attrib.isReadOnly=false]
-   * @param {boolean} [attrib.isMainFile=false]
-   * @param {number} [attrib.preMissingBytes=0]
-   * @param {number} [attrib.afterMissingBytes=0]
-   * @preserve
-   */
-  constructor(path, contents, attrib) {
-    this.path = path;
-    this.contents = contents;
-    this.#attrib = {
-      owner: attrib?.owner ?? '',
-      group: attrib?.group ?? '',
-      webLink: attrib?.webLink ?? '',
-      created: attrib?.created ?? new Date(0),
-      modified: attrib?.modified ?? new Date(0),
-      accessed: attrib?.accessed ?? new Date(0),
-      permissions: attrib?.permissions ?? 0,
-      isDirectory: attrib?.isDirectory ?? false,
-      isHidden: attrib?.isHidden ?? false,
-      isSystem: attrib?.isSystem ?? false,
-      enableBackup: attrib?.enableBackup ?? true,
-      requireBackup: attrib?.requireBackup ?? false,
-      isReadOnly: attrib?.isReadOnly ?? false,
-      isMainFile: attrib?.isMainFile ?? false,
-      preMissingBytes: attrib?.preMissingBytes ?? 0,
-      afterMissingBytes: attrib?.afterMissingBytes ?? 0,
-    };
-  }
-
-  /**
-   * @returns {{owner: string, group: string, webLink: string, created: Date, modified: Date, accessed: Date, permissions: number, isDirectory: boolean, isHidden: boolean, isSystem: boolean, enableBackup: boolean, requireBackup: boolean, isReadOnly: boolean, isMainFile: boolean, preMissingBytes: number, afterMissingBytes: number}}}
-   * @preserve
-   */
-  get attributes() {
-    return this.#attrib;
-  }
-
-  /**
-   * @param {Object} [attrib={}]
-   * @param {string} [attrib.owner='']
-   * @param {string} [attrib.group='']
-   * @param {string} [attrib.webLink='']
-   * @param {Date} [attrib.created=new Date(0)]
-   * @param {Date} [attrib.modified=new Date(0)]
-   * @param {Date} [attrib.accessed=new Date(0)]
-   * @param {number} [attrib.permissions=0]
-   * @param {boolean} [attrib.isDirectory=false]
-   * @param {boolean} [attrib.isHidden=false]
-   * @param {boolean} [attrib.isSystem=false]
-   * @param {boolean} [attrib.enableBackup=true]
-   * @param {boolean} [attrib.requireBackup=false]
-   * @param {boolean} [attrib.isReadOnly=false]
-   * @param {boolean} [attrib.isMainFile=false]
-   * @param {number} [attrib.preMissingBytes=0]
-   * @param {number} [attrib.afterMissingBytes=0]
-   * @preserve
-   */
-  set attributes(attrib) {
-    /* istanbul ignore next */
-    this.#attrib = {
-      owner: attrib?.owner ?? '',
-      group: attrib?.group ?? '',
-      webLink: attrib?.webLink ?? '',
-      created: attrib?.created ?? new Date(0),
-      modified: attrib?.modified ?? new Date(0),
-      accessed: attrib?.accessed ?? new Date(0),
-      permissions: attrib?.permissions ?? 0,
-      isDirectory: attrib?.isDirectory ?? false,
-      isHidden: attrib?.isHidden ?? false,
-      isSystem: attrib?.isSystem ?? false,
-      enableBackup: attrib?.enableBackup ?? true,
-      requireBackup: attrib?.requireBackup ?? false,
-      isReadOnly: attrib?.isReadOnly ?? false,
-      isMainFile: attrib?.isMainFile ?? false,
-      preMissingBytes: attrib?.preMissingBytes ?? 0,
-      afterMissingBytes: attrib?.afterMissingBytes ?? 0,
-    };
-  }
-};
-
-var file = { ContentFile: ContentFile$3 };
-
 const murmur$3 = require$$0.murmur3;
-const crypto$3 = require$$1;
+const crypto$4 = require$$1;
+const { Buffer: Buffer$5 } = require$$2;
 const {
   InvalidChecksumError: InvalidChecksumError$1,
   InvalidPasswordError: InvalidPasswordError$1,
   MissingPasswordError: MissingPasswordError$1,
   UnsafeOperationError: UnsafeOperationError$1,
 } = errors;
-const { ContentFile: ContentFile$2 } = file;
+const { ContentFile: ContentFile$3 } = file;
 
 /**
  * Parses a HSSP 1-3 file.
@@ -235,24 +257,24 @@ function parse$1(buf, options) {
 
   const fileCount = header.readUint32LE(8);
 
-  if (!header.subarray(12, 60).equals(Buffer.alloc(48).fill(0))) {
+  if (!header.subarray(12, 60).equals(Buffer$5.alloc(48).fill(0))) {
     const pwdhashGiven = header.subarray(12, 44).toString('hex');
     if (!options?.password) throw new MissingPasswordError$1(pwdhashGiven);
-    const pwdhashCalculated = crypto$3
+    const pwdhashCalculated = crypto$4
       .createHash('sha256')
-      .update(crypto$3.createHash('sha256').update(options.password).digest())
+      .update(crypto$4.createHash('sha256').update(options.password).digest())
       .digest()
       .toString('hex');
     if (pwdhashCalculated !== pwdhashGiven)
       throw new InvalidPasswordError$1(pwdhashGiven, pwdhashCalculated);
 
     const iv = header.subarray(44, 60);
-    const decipher = crypto$3.createDecipheriv(
+    const decipher = crypto$4.createDecipheriv(
       'aes-256-cbc',
-      crypto$3.createHash('sha256').update(options.password).digest(),
+      crypto$4.createHash('sha256').update(options.password).digest(),
       iv,
     );
-    contents = Buffer.concat([decipher.update(contents), decipher.final()]);
+    contents = Buffer$5.concat([decipher.update(contents), decipher.final()]);
   }
 
   let offs = 0;
@@ -285,9 +307,9 @@ function parse$1(buf, options) {
         offs + 10 + nameLength + dataLength,
       );
 
-      files.push(new ContentFile$2(name, data));
+      files.push(new ContentFile$3(name, data));
     } else {
-      files.push(new ContentFile$2(name, null, { isDirectory: true }));
+      files.push(new ContentFile$3(name, null, { isDirectory: true }));
     }
 
     offs += 10 + nameLength * 2 + dataLength;
@@ -306,7 +328,8 @@ function parse$1(buf, options) {
 var parse_1$1 = { parse: parse$1 };
 
 const murmur$2 = require$$0.murmur3;
-const crypto$2 = require$$1;
+const crypto$3 = require$$1;
+const { Buffer: Buffer$4 } = require$$2;
 
 /**
  * Creates a HSSP 1-3 file.
@@ -320,8 +343,8 @@ const crypto$2 = require$$1;
  * @preserve
  */
 function create$1(files, options) {
-  const header = Buffer.alloc(options?.dhdr ?? false ? 128 : 64);
-  let contents = Buffer.alloc(
+  const header = Buffer$4.alloc(options?.dhdr ?? false ? 128 : 64);
+  let contents = Buffer$4.alloc(
     files.reduce(
       (total, file) =>
         total +
@@ -360,19 +383,19 @@ function create$1(files, options) {
   });
 
   if (options?.password) {
-    const iv = crypto$2.randomBytes(16);
+    const iv = crypto$3.randomBytes(16);
     header.set(iv, 44);
-    const cipher = crypto$2.createCipheriv(
+    const cipher = crypto$3.createCipheriv(
       'aes-256-cbc',
-      crypto$2.createHash('sha256').update(options.password).digest(),
+      crypto$3.createHash('sha256').update(options.password).digest(),
       iv,
     );
-    contents = Buffer.concat([cipher.update(contents), cipher.final()]);
+    contents = Buffer$4.concat([cipher.update(contents), cipher.final()]);
 
     header.set(
-      crypto$2
+      crypto$3
         .createHash('sha256')
-        .update(crypto$2.createHash('sha256').update(options.password).digest())
+        .update(crypto$3.createHash('sha256').update(options.password).digest())
         .digest(),
       12,
     );
@@ -380,7 +403,7 @@ function create$1(files, options) {
 
   header.writeUint32LE(murmur$2(contents.toString('utf8'), 822616071), 4);
 
-  return Buffer.concat([header, contents]);
+  return Buffer$4.concat([header, contents]);
 }
 
 var create_1$1 = { create: create$1 };
@@ -447,7 +470,8 @@ function bitsToByte$1(bits) {
 var bit = { byteToBits: byteToBits$1, bitsToByte: bitsToByte$1 };
 
 const murmur$1 = require$$0.murmur3;
-const crypto$1 = require$$1;
+const crypto$2 = require$$1;
+const { Buffer: Buffer$3 } = require$$2;
 const {
   InvalidChecksumError,
   InvalidPasswordError,
@@ -455,7 +479,7 @@ const {
   UnsafeOperationError,
 } = errors;
 const { Compression: Compression$1 } = compression;
-const { ContentFile: ContentFile$1 } = file;
+const { ContentFile: ContentFile$2 } = file;
 const { byteToBits } = bit;
 
 /**
@@ -481,25 +505,25 @@ function parse(buf, options) {
   if (
     options?.flgd
       ? flags[0]
-      : !header.subarray(12, 60).equals(Buffer.alloc(48).fill(0))
+      : !header.subarray(12, 60).equals(Buffer$3.alloc(48).fill(0))
   ) {
     const pwdhashGiven = header.subarray(12, 44).toString('hex');
     if (!options?.password) throw new MissingPasswordError(pwdhashGiven);
-    const pwdhashCalculated = crypto$1
+    const pwdhashCalculated = crypto$2
       .createHash('sha256')
-      .update(crypto$1.createHash('sha256').update(options.password).digest())
+      .update(crypto$2.createHash('sha256').update(options.password).digest())
       .digest()
       .toString('hex');
     if (pwdhashCalculated !== pwdhashGiven)
       throw new InvalidPasswordError(pwdhashGiven, pwdhashCalculated);
 
     const iv = header.subarray(44, 60);
-    const decipher = crypto$1.createDecipheriv(
+    const decipher = crypto$2.createDecipheriv(
       'aes-256-cbc',
-      crypto$1.createHash('sha256').update(options.password).digest(),
+      crypto$2.createHash('sha256').update(options.password).digest(),
       iv,
     );
-    contents = Buffer.concat([decipher.update(contents), decipher.final()]);
+    contents = Buffer$3.concat([decipher.update(contents), decipher.final()]);
   }
 
   let offs = 0;
@@ -641,7 +665,7 @@ function parse(buf, options) {
   const files = index.map((file, i) => {
     if (index.length - 1 === i)
       overflow = offs + file.size - contents.byteLength;
-    const rt = new ContentFile$1(
+    const rt = new ContentFile$2(
       file.name,
       contents.subarray(offs, offs + file.size),
       {
@@ -675,7 +699,8 @@ function parse(buf, options) {
 var parse_1 = { parse };
 
 const murmur = require$$0.murmur3;
-const crypto = require$$1;
+const crypto$1 = require$$1;
+const { Buffer: Buffer$2 } = require$$2;
 const { Compression } = compression;
 const { bitsToByte } = bit;
 const {
@@ -683,7 +708,7 @@ const {
   InvalidFileCountError,
 } = errors;
 // eslint-disable-next-line no-unused-vars
-const { ContentFile } = file;
+const { ContentFile: ContentFile$1 } = file;
 
 /**
  * Creates a HSSP 4 or 5 file.
@@ -707,20 +732,20 @@ const { ContentFile } = file;
  * @preserve
  */
 function create(files, options) {
-  const header = Buffer.alloc(128);
+  const header = Buffer$2.alloc(128);
   let indexLength = 0;
   let bodyLength = 0;
   for (let i = 0; i < files.length; i += 1) {
     indexLength +=
       38 +
-      Buffer.from(files[i].path, 'utf8').byteLength +
-      Buffer.from(files[i].attributes.owner, 'utf8').byteLength +
-      Buffer.from(files[i].attributes.group, 'utf8').byteLength +
-      Buffer.from(files[i].attributes.webLink, 'utf8').byteLength;
+      Buffer$2.from(files[i].path, 'utf8').byteLength +
+      Buffer$2.from(files[i].attributes.owner, 'utf8').byteLength +
+      Buffer$2.from(files[i].attributes.group, 'utf8').byteLength +
+      Buffer$2.from(files[i].attributes.webLink, 'utf8').byteLength;
     bodyLength += files[i].contents !== null ? files[i].contents.byteLength : 0;
   }
-  const index = Buffer.alloc(indexLength);
-  const body = Buffer.alloc(bodyLength);
+  const index = Buffer$2.alloc(indexLength);
+  const body = Buffer$2.alloc(bodyLength);
 
   header.write('HSSP', 0, 4, 'utf8');
   header.writeUint8(4, 4);
@@ -733,8 +758,8 @@ function create(files, options) {
         !!options?.password,
         !!options?.compressionAlgorithm,
         !!options?.__split,
-        options?.__split.isFirst ?? true,
-        options?.__split.isLast ?? true,
+        options?.__split?.isFirst ?? true,
+        options?.__split?.isLast ?? true,
         false,
         false,
         false,
@@ -755,10 +780,10 @@ function create(files, options) {
   let bodyOffset = 0;
 
   for (let i = 0; i < files.length; i += 1) {
-    const nl = Buffer.from(files[i].path, 'utf8').byteLength;
-    const ol = Buffer.from(files[i].attributes.owner, 'utf8').byteLength;
-    const gl = Buffer.from(files[i].attributes.group, 'utf8').byteLength;
-    const wl = Buffer.from(files[i].attributes.webLink, 'utf8').byteLength;
+    const nl = Buffer$2.from(files[i].path, 'utf8').byteLength;
+    const ol = Buffer$2.from(files[i].attributes.owner, 'utf8').byteLength;
+    const gl = Buffer$2.from(files[i].attributes.group, 'utf8').byteLength;
+    const wl = Buffer$2.from(files[i].attributes.webLink, 'utf8').byteLength;
 
     index.writeBigInt64LE(
       BigInt(files[i].contents !== null ? files[i].contents.byteLength : 0),
@@ -820,7 +845,7 @@ function create(files, options) {
     bodyOffset += files[i].contents !== null ? files[i].contents.byteLength : 0;
   }
 
-  let contents = Buffer.concat([index, body]);
+  let contents = Buffer$2.concat([index, body]);
 
   if (
     (options?.compressionLevel && options?.compressionLevel < 0) ||
@@ -833,19 +858,19 @@ function create(files, options) {
   header.write(compression.getIdxdCode(options?.compressionAlgorithm), 60, 4, 'utf8');
 
   if (options?.password) {
-    const iv = crypto.randomBytes(16);
+    const iv = crypto$1.randomBytes(16);
     header.set(iv, 44);
-    const cipher = crypto.createCipheriv(
+    const cipher = crypto$1.createCipheriv(
       'aes-256-cbc',
-      crypto.createHash('sha256').update(options.password).digest(),
+      crypto$1.createHash('sha256').update(options.password).digest(),
       iv,
     );
-    contents = Buffer.concat([cipher.update(contents), cipher.final()]);
+    contents = Buffer$2.concat([cipher.update(contents), cipher.final()]);
 
     header.set(
-      crypto
+      crypto$1
         .createHash('sha256')
-        .update(crypto.createHash('sha256').update(options.password).digest())
+        .update(crypto$1.createHash('sha256').update(options.password).digest())
         .digest(),
       12,
     );
@@ -853,7 +878,7 @@ function create(files, options) {
 
   header.writeUint32LE(murmur(contents.toString('utf8'), 822616071), 64);
 
-  return Buffer.concat([header, contents]);
+  return Buffer$2.concat([header, contents]);
 }
 
 /**
@@ -890,7 +915,7 @@ function createSplit(files, count, options) {
 
     while (length <= maxLength && file < files.length) {
       filesIncluded.push(
-        new ContentFile(
+        new ContentFile$1(
           files[file].path,
           files[file].contents?.subarray(offset) ?? null,
           files[file].attributes,
@@ -939,6 +964,9 @@ function createSplit(files, count, options) {
 
 var create_1 = { create, createSplit };
 
+/* eslint-disable no-unused-vars */
+/* eslint-enable no-unused-vars */
+
 const wfldparse = parse_1$1;
 const wfldcreate = create_1$1;
 
@@ -973,6 +1001,7 @@ const v = {
   4: {
     parse: idxdparse.parse,
     create: idxdcreate.create,
+    createSplit: idxdcreate.createSplit,
   },
   5: {
     parse: (b, o) =>
@@ -985,9 +1014,18 @@ const v = {
         flgd: true,
         ...(o ?? {}),
       }),
+    createSplit: (f, c, o) => 
+      idxdcreate.createSplit(f, c, {
+        flgd: true,
+        ...(o ?? {}),
+      }),
   },
 };
 
+/**
+ * The editor class. This class is used to create and edit HSSP files.
+ * @preserve
+ */
 let Editor$1 = class Editor {
   #files = [];
 
@@ -1018,35 +1056,120 @@ let Editor$1 = class Editor {
     this.#files = v[version].parse(binary, options);
   }
 
+  /**
+   * @param {string} comment
+   * @preserve
+   */
   set comment(comment) {
     this.#comment = comment;
   }
 
+  /**
+   * @returns {string}
+   * @preserve
+   */
   get comment() {
     return this.#comment;
   }
 
+  /**
+   * @returns {Array<ContentFile>}
+   * @preserve
+   */
   listFiles() {
     return this.#files.map((f) => f.path);
   }
 
+  /**
+   * @param {string} path
+   * @returns {ContentFile}
+   * @preserve
+   */
   getFile(path) {
     return this.#files.find((f) => f.path === path);
   }
 
+  /**
+   * @param {string} path
+   * @preserve
+   */
   removeFile(path) {
     this.#files = this.#files.filter((f) => f.path !== path);
   }
 
-  createFolder(path, attributes) {}
+  /**
+   * @param {string} path
+   * @preserve
+   */
+  removeFolder(path) {
+    this.#files = this.#files.filter((f) => !f.path.startsWith(path));
+  }
+
+  /**
+   * @param {string} path
+   * @param {FileAttributes} [attributes]
+   * @preserve
+   */
+  createFolder(path, attributes) {
+    this.#files.push({
+      path,
+      contents: null,
+      attributes: { ...attributes, isDirectory: true },
+    });
+  }
+
+  /**
+   * @param {string} path
+   * @param {Buffer} contents
+   * @param {FileAttributes} [attributes]
+   * @preserve
+   */
+  createFile(path, contents, attributes) {
+    this.#files.push({
+      path,
+      contents,
+      attributes: { ...attributes, isDirectory: false },
+    });
+  }
+
+  /**
+   * @param {PackOptions} options 
+   * @returns {Buffer}
+   * @preserve
+   */
+  pack(options) {
+    const version = options?.version ?? 5;
+    return v[version].create(this.#files, options);
+  }
+
+  /**
+   * @param {number} count
+   * @param {PackOptions} options 
+   * @returns {Buffer[]}
+   * @preserve
+   */
+  packMultiple(count, options) {
+    const version = options?.version ?? 5;
+    return v[version].createSplit(this.#files, options);
+  }
 };
 
 var editor = { Editor: Editor$1 };
 
-const Editor = editor;
+const { Buffer: Buffer$1 } = require$$2;
+const crypto = require$$1;
+
+const { Editor } = editor;
+const { ContentFile, FileAttributes } = file;
+const { PackOptions } = packoptions;
 
 var main = {
   Editor,
+  crypto,
+  Buffer: Buffer$1,
+  FileAttributes,
+  ContentFile,
+  PackOptions,
 };
 
 var main$1 = /*@__PURE__*/getDefaultExportFromCjs(main);

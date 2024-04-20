@@ -1,5 +1,6 @@
 const murmur = require('murmurhash-js').murmur3;
 const crypto = require('crypto');
+const { Buffer } = require('buffer');
 const { Compression } = require('../compression');
 const { bitsToByte } = require('../bit');
 const {
@@ -57,8 +58,8 @@ function create(files, options) {
         !!options?.password,
         !!options?.compressionAlgorithm,
         !!options?.__split,
-        options?.__split.isFirst ?? true,
-        options?.__split.isLast ?? true,
+        options?.__split?.isFirst ?? true,
+        options?.__split?.isLast ?? true,
         false,
         false,
         false,

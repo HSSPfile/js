@@ -4,7 +4,7 @@
 
 MIT License
 
-Copyright (c) 2023-2024 HSSP Contributors
+Copyright (c) 2023-2024 Leonard Lesinski
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -44270,8 +44270,10 @@ module.exports = { Compression };
 /***/ 348:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-// eslint-disable-next-line no-unused-vars
-const { Buffer } = __webpack_require__(3296); // this is required to make Buffer available everywhere
+/* eslint-disable no-unused-vars */
+const { ContentFile, FileAttributes } = __webpack_require__(6624);
+const { PackOptions } = __webpack_require__(8480);
+/* eslint-enable no-unused-vars */
 
 const wfldparse = __webpack_require__(4072);
 const wfldcreate = __webpack_require__(8848);
@@ -44307,6 +44309,7 @@ const v = {
   4: {
     parse: idxdparse.parse,
     create: idxdcreate.create,
+    createSplit: idxdcreate.createSplit,
   },
   5: {
     parse: (b, o) =>
@@ -44319,9 +44322,18 @@ const v = {
         flgd: true,
         ...(o ?? {}),
       }),
+    createSplit: (f, c, o) => 
+      idxdcreate.createSplit(f, c, {
+        flgd: true,
+        ...(o ?? {}),
+      }),
   },
 };
 
+/**
+ * The editor class. This class is used to create and edit HSSP files.
+ * @preserve
+ */
 class Editor {
   #files = [];
 
@@ -44352,31 +44364,105 @@ class Editor {
     this.#files = v[version].parse(binary, options);
   }
 
+  /**
+   * @param {string} comment
+   * @preserve
+   */
   set comment(comment) {
     this.#comment = comment;
   }
 
+  /**
+   * @returns {string}
+   * @preserve
+   */
   get comment() {
     return this.#comment;
   }
 
+  /**
+   * @returns {Array<ContentFile>}
+   * @preserve
+   */
   listFiles() {
     return this.#files.map((f) => f.path);
   }
 
+  /**
+   * @param {string} path
+   * @returns {ContentFile}
+   * @preserve
+   */
   getFile(path) {
     return this.#files.find((f) => f.path === path);
   }
 
+  /**
+   * @param {string} path
+   * @preserve
+   */
   removeFile(path) {
     this.#files = this.#files.filter((f) => f.path !== path);
   }
 
-  createFolder(path, attributes) {}
+  /**
+   * @param {string} path
+   * @preserve
+   */
+  removeFolder(path) {
+    this.#files = this.#files.filter((f) => !f.path.startsWith(path));
+  }
+
+  /**
+   * @param {string} path
+   * @param {FileAttributes} [attributes]
+   * @preserve
+   */
+  createFolder(path, attributes) {
+    this.#files.push({
+      path,
+      contents: null,
+      attributes: { ...attributes, isDirectory: true },
+    });
+  }
+
+  /**
+   * @param {string} path
+   * @param {Buffer} contents
+   * @param {FileAttributes} [attributes]
+   * @preserve
+   */
+  createFile(path, contents, attributes) {
+    this.#files.push({
+      path,
+      contents,
+      attributes: { ...attributes, isDirectory: false },
+    });
+  }
+
+  /**
+   * @param {PackOptions} options 
+   * @returns {Buffer}
+   * @preserve
+   */
+  pack(options) {
+    const version = options?.version ?? 5;
+    return v[version].create(this.#files, options);
+  }
+
+  /**
+   * @param {number} count
+   * @param {PackOptions} options 
+   * @returns {Buffer[]}
+   * @preserve
+   */
+  packMultiple(count, options) {
+    const version = options?.version ?? 5;
+    return v[version].createSplit(this.#files, options);
+  }
 }
 
 module.exports = { Editor };
-
 
 /***/ }),
 
@@ -44446,9 +44532,84 @@ module.exports = {
 /***/ 6624:
 /***/ ((module) => {
 
+/* eslint-disable max-classes-per-file */
+
+/**
+ * @typedef {Object} FileAttributes
+ * @property {string} [owner='']
+ * @property {string} [group='']
+ * @property {string} [webLink='']
+ * @property {Date} [created=new Date(0)]
+ * @property {Date} [modified=new Date(0)]
+ * @property {Date} [accessed=new Date(0)]
+ * @property {number} [permissions=0]
+ * @property {boolean} [isDirectory=false]
+ * @property {boolean} [isHidden=false]
+ * @property {boolean} [isSystem=false]
+ * @property {boolean} [enableBackup=true]
+ * @property {boolean} [requireBackup=false]
+ * @property {boolean} [isReadOnly=false]
+ * @property {boolean} [isMainFile=false]
+ * @property {number} [preMissingBytes=0]
+ * @property {number} [afterMissingBytes=0]
+ * @preserve
+ */
+class FileAttributes {
+  owner = '';
+
+  group = '';
+
+  webLink = '';
+
+  created = new Date(0);
+
+  modified = new Date(0);
+
+  accessed = new Date(0);
+
+  permissions = 0;
+
+  isDirectory = false;
+
+  isHidden = false;
+
+  isSystem = false;
+
+  enableBackup = true;
+
+  requireBackup = false;
+
+  isReadOnly = false;
+
+  isMainFile = false;
+
+  preMissingBytes = 0;
+
+  afterMissingBytes = 0;
+
+  constructor(attrib) {
+    this.owner = attrib?.owner ?? '';
+    this.group = attrib?.group ?? '';
+    this.webLink = attrib?.webLink ?? '';
+    this.created = attrib?.created ?? new Date(0);
+    this.modified = attrib?.modified ?? new Date(0);
+    this.accessed = attrib?.accessed ?? new Date(0);
+    this.permissions = attrib?.permissions ?? 0;
+    this.isDirectory = attrib?.isDirectory ?? false;
+    this.isHidden = attrib?.isHidden ?? false;
+    this.isSystem = attrib?.isSystem ?? false;
+    this.enableBackup = attrib?.enableBackup ?? true;
+    this.requireBackup = attrib?.requireBackup ?? false;
+    this.isReadOnly = attrib?.isReadOnly ?? false;
+    this.isMainFile = attrib?.isMainFile ?? false;
+    this.preMissingBytes = attrib?.preMissingBytes ?? 0;
+    this.afterMissingBytes = attrib?.afterMissingBytes ?? 0;
+  }
+}
+
 class ContentFile {
   path = '';
-  
+
   contents = Buffer.alloc(0);
 
   #attrib;
@@ -44456,50 +44617,17 @@ class ContentFile {
   /**
    * @param {string} path
    * @param {Buffer} contents
-   * @param {Object} [attrib={}]
-   * @param {string} [attrib.owner='']
-   * @param {string} [attrib.group='']
-   * @param {string} [attrib.webLink='']
-   * @param {Date} [attrib.created=new Date(0)]
-   * @param {Date} [attrib.modified=new Date(0)]
-   * @param {Date} [attrib.accessed=new Date(0)]
-   * @param {number} [attrib.permissions=0]
-   * @param {boolean} [attrib.isDirectory=false]
-   * @param {boolean} [attrib.isHidden=false]
-   * @param {boolean} [attrib.isSystem=false]
-   * @param {boolean} [attrib.enableBackup=true]
-   * @param {boolean} [attrib.requireBackup=false]
-   * @param {boolean} [attrib.isReadOnly=false]
-   * @param {boolean} [attrib.isMainFile=false]
-   * @param {number} [attrib.preMissingBytes=0]
-   * @param {number} [attrib.afterMissingBytes=0]
+   * @param {FileAttributes} [attrib]
    * @preserve
    */
   constructor(path, contents, attrib) {
     this.path = path;
     this.contents = contents;
-    this.#attrib = {
-      owner: attrib?.owner ?? '',
-      group: attrib?.group ?? '',
-      webLink: attrib?.webLink ?? '',
-      created: attrib?.created ?? new Date(0),
-      modified: attrib?.modified ?? new Date(0),
-      accessed: attrib?.accessed ?? new Date(0),
-      permissions: attrib?.permissions ?? 0,
-      isDirectory: attrib?.isDirectory ?? false,
-      isHidden: attrib?.isHidden ?? false,
-      isSystem: attrib?.isSystem ?? false,
-      enableBackup: attrib?.enableBackup ?? true,
-      requireBackup: attrib?.requireBackup ?? false,
-      isReadOnly: attrib?.isReadOnly ?? false,
-      isMainFile: attrib?.isMainFile ?? false,
-      preMissingBytes: attrib?.preMissingBytes ?? 0,
-      afterMissingBytes: attrib?.afterMissingBytes ?? 0,
-    };
+    this.#attrib = new FileAttributes(attrib);
   }
 
   /**
-   * @returns {{owner: string, group: string, webLink: string, created: Date, modified: Date, accessed: Date, permissions: number, isDirectory: boolean, isHidden: boolean, isSystem: boolean, enableBackup: boolean, requireBackup: boolean, isReadOnly: boolean, isMainFile: boolean, preMissingBytes: number, afterMissingBytes: number}}}
+   * @returns {FileAttributes}
    * @preserve
    */
   get attributes() {
@@ -44507,49 +44635,16 @@ class ContentFile {
   }
 
   /**
-   * @param {Object} [attrib={}]
-   * @param {string} [attrib.owner='']
-   * @param {string} [attrib.group='']
-   * @param {string} [attrib.webLink='']
-   * @param {Date} [attrib.created=new Date(0)]
-   * @param {Date} [attrib.modified=new Date(0)]
-   * @param {Date} [attrib.accessed=new Date(0)]
-   * @param {number} [attrib.permissions=0]
-   * @param {boolean} [attrib.isDirectory=false]
-   * @param {boolean} [attrib.isHidden=false]
-   * @param {boolean} [attrib.isSystem=false]
-   * @param {boolean} [attrib.enableBackup=true]
-   * @param {boolean} [attrib.requireBackup=false]
-   * @param {boolean} [attrib.isReadOnly=false]
-   * @param {boolean} [attrib.isMainFile=false]
-   * @param {number} [attrib.preMissingBytes=0]
-   * @param {number} [attrib.afterMissingBytes=0]
+   * @param {FileAttributes} [attrib]
    * @preserve
    */
   set attributes(attrib) {
     /* istanbul ignore next */
-    this.#attrib = {
-      owner: attrib?.owner ?? '',
-      group: attrib?.group ?? '',
-      webLink: attrib?.webLink ?? '',
-      created: attrib?.created ?? new Date(0),
-      modified: attrib?.modified ?? new Date(0),
-      accessed: attrib?.accessed ?? new Date(0),
-      permissions: attrib?.permissions ?? 0,
-      isDirectory: attrib?.isDirectory ?? false,
-      isHidden: attrib?.isHidden ?? false,
-      isSystem: attrib?.isSystem ?? false,
-      enableBackup: attrib?.enableBackup ?? true,
-      requireBackup: attrib?.requireBackup ?? false,
-      isReadOnly: attrib?.isReadOnly ?? false,
-      isMainFile: attrib?.isMainFile ?? false,
-      preMissingBytes: attrib?.preMissingBytes ?? 0,
-      afterMissingBytes: attrib?.afterMissingBytes ?? 0,
-    };
+    this.#attrib = new FileAttributes(attrib);
   }
 }
 
-module.exports = { ContentFile };
+module.exports = { ContentFile, FileAttributes };
 
 
 /***/ }),
@@ -44559,6 +44654,7 @@ module.exports = { ContentFile };
 
 const murmur = (__webpack_require__(2780).murmur3);
 const crypto = __webpack_require__(4160);
+const { Buffer } = __webpack_require__(3296);
 const { Compression } = __webpack_require__(4944);
 const { bitsToByte } = __webpack_require__(4268);
 const {
@@ -44616,8 +44712,8 @@ function create(files, options) {
         !!options?.password,
         !!options?.compressionAlgorithm,
         !!options?.__split,
-        options?.__split.isFirst ?? true,
-        options?.__split.isLast ?? true,
+        options?.__split?.isFirst ?? true,
+        options?.__split?.isLast ?? true,
         false,
         false,
         false,
@@ -44830,6 +44926,7 @@ module.exports = { create, createSplit };
 
 const murmur = (__webpack_require__(2780).murmur3);
 const crypto = __webpack_require__(4160);
+const { Buffer } = __webpack_require__(3296);
 const {
   InvalidChecksumError,
   InvalidPasswordError,
@@ -45062,12 +45159,39 @@ module.exports = { parse };
 /***/ 460:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-const Editor = __webpack_require__(348);
+const { Buffer } = __webpack_require__(3296);
+const crypto = __webpack_require__(4160);
+
+const { Editor } = __webpack_require__(348);
+const { ContentFile, FileAttributes } = __webpack_require__(6624);
+const { PackOptions } = __webpack_require__(8480);
 
 module.exports = {
   Editor,
+  crypto,
+  Buffer,
+  FileAttributes,
+  ContentFile,
+  PackOptions,
 };
 
+
+/***/ }),
+
+/***/ 8480:
+/***/ ((module) => {
+
+/**
+ * @typedef {Object} PackOptions
+ * @property {number} [compressionLevel=5] The compression level to use.
+ * @property {string} [compressionAlgorithm] The compression algorithm to use.
+ * @property {string} [password] The password to encrypt the files.
+ * @property {string} [comment] The comment to add to the files.
+ * @preserve
+ */
+class PackOptions {};
+
+module.exports = { PackOptions };
 
 /***/ }),
 
@@ -45076,6 +45200,7 @@ module.exports = {
 
 const murmur = (__webpack_require__(2780).murmur3);
 const crypto = __webpack_require__(4160);
+const { Buffer } = __webpack_require__(3296);
 // eslint-disable-next-line no-unused-vars
 const { ContentFile } = __webpack_require__(6624);
 
@@ -45164,6 +45289,7 @@ module.exports = { create };
 
 const murmur = (__webpack_require__(2780).murmur3);
 const crypto = __webpack_require__(4160);
+const { Buffer } = __webpack_require__(3296);
 const {
   InvalidChecksumError,
   InvalidPasswordError,

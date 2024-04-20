@@ -5,7 +5,10 @@
     "node": ">=16.0.0"
   },
   "description": "Create, edit and read HSSP files in pure JavaScript",
-  "main": "src/main.js",
+  "main": "dist/hssp.js",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "mocha",
     "lint": "eslint .",
