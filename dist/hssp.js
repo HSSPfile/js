@@ -967,55 +967,55 @@ var create_1 = { create, createSplit };
 /* eslint-disable no-unused-vars */
 /* eslint-enable no-unused-vars */
 
-const wfldparse = parse_1$1;
-const wfldcreate = create_1$1;
+const wfldparse$1 = parse_1$1;
+const wfldcreate$1 = create_1$1;
 
-const idxdparse = parse_1;
-const idxdcreate = create_1;
+const idxdparse$1 = parse_1;
+const idxdcreate$1 = create_1;
 
 const v = {
   1: {
-    parse: wfldparse.parse,
+    parse: wfldparse$1.parse,
     create: (f, o) =>
-      wfldcreate.create(f, {
+      wfldcreate$1.create(f, {
         wfld: true,
         ...(o ?? {}),
       }),
   },
   2: {
-    parse: wfldparse.parse,
-    create: wfldcreate.create,
+    parse: wfldparse$1.parse,
+    create: wfldcreate$1.create,
   },
   3: {
     parse: (b, o) =>
-      wfldparse.parse(b, {
+      wfldparse$1.parse(b, {
         dhdr: true,
         ...(o ?? {}),
       }),
     create: (f, o) =>
-      wfldcreate.create(f, {
+      wfldcreate$1.create(f, {
         dhdr: true,
         ...(o ?? {}),
       }),
   },
   4: {
-    parse: idxdparse.parse,
-    create: idxdcreate.create,
-    createSplit: idxdcreate.createSplit,
+    parse: idxdparse$1.parse,
+    create: idxdcreate$1.create,
+    createSplit: idxdcreate$1.createSplit,
   },
   5: {
     parse: (b, o) =>
-      idxdparse.parse(b, {
+      idxdparse$1.parse(b, {
         flgd: true,
         ...(o ?? {}),
       }),
     create: (f, o) =>
-      idxdcreate.create(f, {
+      idxdcreate$1.create(f, {
         flgd: true,
         ...(o ?? {}),
       }),
     createSplit: (f, c, o) => 
-      idxdcreate.createSplit(f, c, {
+      idxdcreate$1.createSplit(f, c, {
         flgd: true,
         ...(o ?? {}),
       }),
@@ -1150,7 +1150,7 @@ let Editor$1 = class Editor {
    */
   packMultiple(count, options) {
     const version = options?.version ?? 5;
-    return v[version].createSplit(this.#files, options);
+    return v[version].createSplit(this.#files, count, options);
   }
 };
 
@@ -1163,6 +1163,12 @@ const { Editor } = editor;
 const { ContentFile, FileAttributes } = file;
 const { PackOptions } = packoptions;
 
+const wfldparse = parse_1$1;
+const wfldcreate = create_1$1;
+
+const idxdparse = parse_1;
+const idxdcreate = create_1;
+
 var main = {
   Editor,
   crypto,
@@ -1170,6 +1176,16 @@ var main = {
   FileAttributes,
   ContentFile,
   PackOptions,
+
+  parsers: {
+    wfld: wfldparse.parse,
+    idxd: idxdparse.parse,
+  },
+  packers: {
+    wfld: wfldcreate.create,
+    idxd: idxdcreate.create,
+    idxdSplit: idxdcreate.createSplit,
+  },
 };
 
 var main$1 = /*@__PURE__*/getDefaultExportFromCjs(main);

@@ -44458,7 +44458,7 @@ class Editor {
    */
   packMultiple(count, options) {
     const version = options?.version ?? 5;
-    return v[version].createSplit(this.#files, options);
+    return v[version].createSplit(this.#files, count, options);
   }
 }
 
@@ -45166,6 +45166,12 @@ const { Editor } = __webpack_require__(348);
 const { ContentFile, FileAttributes } = __webpack_require__(6624);
 const { PackOptions } = __webpack_require__(8480);
 
+const wfldparse = __webpack_require__(4072);
+const wfldcreate = __webpack_require__(8848);
+
+const idxdparse = __webpack_require__(7000);
+const idxdcreate = __webpack_require__(1848);
+
 module.exports = {
   Editor,
   crypto,
@@ -45173,6 +45179,16 @@ module.exports = {
   FileAttributes,
   ContentFile,
   PackOptions,
+
+  parsers: {
+    wfld: wfldparse.parse,
+    idxd: idxdparse.parse,
+  },
+  packers: {
+    wfld: wfldcreate.create,
+    idxd: idxdcreate.create,
+    idxdSplit: idxdcreate.createSplit,
+  },
 };
 
 
