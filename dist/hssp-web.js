@@ -44458,7 +44458,7 @@ class Editor {
    */
   packMultiple(count, options) {
     const version = options?.version ?? 5;
-    return v[version].createSplit(this.#files, count, options);
+    return v[version].createSplit(this.#files, count, {comment: this.#comment, ...options});
   }
 }
 
@@ -45165,6 +45165,7 @@ const crypto = __webpack_require__(4160);
 const { Editor } = __webpack_require__(348);
 const { ContentFile, FileAttributes } = __webpack_require__(6624);
 const { PackOptions } = __webpack_require__(8480);
+const { Compression } = __webpack_require__(4944);
 
 const wfldparse = __webpack_require__(4072);
 const wfldcreate = __webpack_require__(8848);
@@ -45179,6 +45180,7 @@ module.exports = {
   FileAttributes,
   ContentFile,
   PackOptions,
+  Compression,
 
   parsers: {
     wfld: wfldparse.parse,
@@ -45195,19 +45197,24 @@ module.exports = {
 /***/ }),
 
 /***/ 8480:
-/***/ ((module) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+/* eslint-disable no-unused-vars */
+const { Compression } = __webpack_require__(4944);
 
 /**
  * @typedef {Object} PackOptions
  * @property {number} [compressionLevel=5] The compression level to use.
+ * @property {Compression} [compression] The compression instance to use.
  * @property {string} [compressionAlgorithm] The compression algorithm to use.
  * @property {string} [password] The password to encrypt the files.
  * @property {string} [comment] The comment to add to the files.
  * @preserve
  */
-class PackOptions {};
+class PackOptions {}
 
 module.exports = { PackOptions };
+
 
 /***/ }),
 

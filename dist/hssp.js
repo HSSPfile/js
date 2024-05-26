@@ -152,18 +152,6 @@ let ContentFile$4 = class ContentFile {
 
 var file = { ContentFile: ContentFile$4, FileAttributes: FileAttributes$1 };
 
-/**
- * @typedef {Object} PackOptions
- * @property {number} [compressionLevel=5] The compression level to use.
- * @property {string} [compressionAlgorithm] The compression algorithm to use.
- * @property {string} [password] The password to encrypt the files.
- * @property {string} [comment] The comment to add to the files.
- * @preserve
- */
-
-let PackOptions$1 = class PackOptions {};
-var packoptions = { PackOptions: PackOptions$1 };
-
 /* eslint-disable max-classes-per-file */
 
 let InvalidChecksumError$2 = class InvalidChecksumError extends Error {
@@ -220,6 +208,63 @@ var errors = {
   InvalidCompressionLevelError: InvalidCompressionLevelError$1,
   InvalidFileCountError: InvalidFileCountError$1,
 };
+
+const { UnknownCompressionError } = errors;
+
+let Compression$3 = class Compression {
+  #algorithms = {};
+
+  compress(algorithm, data, level) {
+    if (!algorithm) return data;
+    if (!this.#algorithms[algorithm])
+      throw new UnknownCompressionError(algorithm);
+
+    return this.#algorithms[algorithm].compress(data, level);
+  }
+
+  decompress(algorithm, data) {
+    if (!algorithm) return data;
+    if (!this.#algorithms[algorithm])
+      throw new UnknownCompressionError(algorithm);
+
+    return this.#algorithms[algorithm].decompress(data);
+  }
+
+  add(algorithm, code, compress, decompress) {
+    this.#algorithms[algorithm] = { code, compress, decompress };
+  }
+
+  getByIdxdCode(code) {
+    const index = Object.values(this.#algorithms).findIndex((a) => a.code.idxd === code);
+    if (index === -1) throw new UnknownCompressionError(code);
+    return Object.keys(this.#algorithms)[index];
+  }
+
+  getIdxdCode(algorithm) {
+    if (!algorithm) return 'NONE';
+    if (!this.#algorithms[algorithm])
+      throw new UnknownCompressionError(algorithm);
+
+    return this.#algorithms[algorithm].code.idxd;
+  }
+};
+
+var compression = { Compression: Compression$3 };
+
+/* eslint-disable no-unused-vars */
+
+/**
+ * @typedef {Object} PackOptions
+ * @property {number} [compressionLevel=5] The compression level to use.
+ * @property {Compression} [compression] The compression instance to use.
+ * @property {string} [compressionAlgorithm] The compression algorithm to use.
+ * @property {string} [password] The password to encrypt the files.
+ * @property {string} [comment] The comment to add to the files.
+ * @preserve
+ */
+let PackOptions$1 = class PackOptions {};
+
+var packoptions = { PackOptions: PackOptions$1 };
 
 const murmur$3 = require$$0.murmur3;
 const crypto$4 = require$$1;
@@ -408,48 +453,6 @@ function create$1(files, options) {
 
 var create_1$1 = { create: create$1 };
 
-const { UnknownCompressionError } = errors;
-
-let Compression$2 = class Compression {
-  #algorithms = {};
-
-  compress(algorithm, data, level) {
-    if (!algorithm) return data;
-    if (!this.#algorithms[algorithm])
-      throw new UnknownCompressionError(algorithm);
-
-    return this.#algorithms[algorithm].compress(data, level);
-  }
-
-  decompress(algorithm, data) {
-    if (!algorithm) return data;
-    if (!this.#algorithms[algorithm])
-      throw new UnknownCompressionError(algorithm);
-
-    return this.#algorithms[algorithm].decompress(data);
-  }
-
-  add(algorithm, code, compress, decompress) {
-    this.#algorithms[algorithm] = { code, compress, decompress };
-  }
-
-  getByIdxdCode(code) {
-    const index = Object.values(this.#algorithms).findIndex((a) => a.code.idxd === code);
-    if (index === -1) throw new UnknownCompressionError(code);
-    return Object.keys(this.#algorithms)[index];
-  }
-
-  getIdxdCode(algorithm) {
-    if (!algorithm) return 'NONE';
-    if (!this.#algorithms[algorithm])
-      throw new UnknownCompressionError(algorithm);
-
-    return this.#algorithms[algorithm].code.idxd;
-  }
-};
-
-var compression = { Compression: Compression$2 };
-
 function byteToBits$1(byte) {
   return [
     !!Math.floor(byte / 128),
@@ -478,7 +481,7 @@ const {
   MissingPasswordError,
   UnsafeOperationError,
 } = errors;
-const { Compression: Compression$1 } = compression;
+const { Compression: Compression$2 } = compression;
 const { ContentFile: ContentFile$2 } = file;
 const { byteToBits } = bit;
 
@@ -532,7 +535,7 @@ function parse(buf, options) {
     const algorithm = buf.toString('utf8', 60, 64);
 
     if (!(algorithm === 'NONE' && !options?.flgd)) { // TODO: make this more readable, every time I change something here half of the tests fail
-      const compression = options?.compression ?? new Compression$1();
+      const compression = options?.compression ?? new Compression$2();
       contents = compression.decompress(
         compression.getByIdxdCode(algorithm),
         contents,
@@ -701,7 +704,7 @@ var parse_1 = { parse };
 const murmur = require$$0.murmur3;
 const crypto$1 = require$$1;
 const { Buffer: Buffer$2 } = require$$2;
-const { Compression } = compression;
+const { Compression: Compression$1 } = compression;
 const { bitsToByte } = bit;
 const {
   InvalidCompressionLevelError,
@@ -853,7 +856,7 @@ function create(files, options) {
   )
     throw new InvalidCompressionLevelError(options?.compressionLevel);
 
-  const compression = options?.compression ?? new Compression();
+  const compression = options?.compression ?? new Compression$1();
   contents = compression.compress(options?.compressionAlgorithm, contents, options?.compressionLevel ?? 5);
   header.write(compression.getIdxdCode(options?.compressionAlgorithm), 60, 4, 'utf8');
 
@@ -1150,7 +1153,7 @@ let Editor$1 = class Editor {
    */
   packMultiple(count, options) {
     const version = options?.version ?? 5;
-    return v[version].createSplit(this.#files, count, options);
+    return v[version].createSplit(this.#files, count, {comment: this.#comment, ...options});
   }
 };
 
@@ -1162,6 +1165,7 @@ const crypto = require$$1;
 const { Editor } = editor;
 const { ContentFile, FileAttributes } = file;
 const { PackOptions } = packoptions;
+const { Compression } = compression;
 
 const wfldparse = parse_1$1;
 const wfldcreate = create_1$1;
@@ -1176,6 +1180,7 @@ var main = {
   FileAttributes,
   ContentFile,
   PackOptions,
+  Compression,
 
   parsers: {
     wfld: wfldparse.parse,
