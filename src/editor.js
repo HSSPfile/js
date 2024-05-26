@@ -186,7 +186,7 @@ class Editor {
    */
   packMultiple(count, options) {
     const version = options?.version ?? 5;
-    return v[version].createSplit(this.#files, count, options);
+    return v[version].createSplit(this.#files, count, {comment: this.#comment, ...options});
   }
 }
 

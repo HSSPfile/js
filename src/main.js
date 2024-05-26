@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { Editor } = require('./editor');
 const { ContentFile, FileAttributes } = require('./file');
 const { PackOptions } = require('./packoptions');
+const { Compression } = require('./compression');
 
 const wfldparse = require('./wfld-rfld-dhdr/parse');
 const wfldcreate = require('./wfld-rfld-dhdr/create');
@@ -18,6 +19,7 @@ module.exports = {
   FileAttributes,
   ContentFile,
   PackOptions,
+  Compression,
 
   parsers: {
     wfld: wfldparse.parse,
