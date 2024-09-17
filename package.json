@@ -10,8 +10,8 @@
     "dist"
   ],
   "scripts": {
-    "test": "mocha",
-    "lint": "eslint .",
+    "test": "npm run samples && mocha",
+    "lint": "echo \"TODO: Set up ESLint\"",
     "format": "prettier . -w",
     "fullcoverage": "nyc check-coverage",
     "coverage": "nyc mocha",
@@ -20,9 +20,9 @@
     "browser-build": "webpack --config webpack.config.js",
     "browser-min": "terser dist/hssp-web.js -o dist/hssp-web.min.js",
     "license": "node ./scripts/add-license.js",
-
+    "samples": "node ./scripts/generate-samples.js",
     "build": "npm run node-build && npm run node-min && npm run browser-build && npm run browser-min && npm run license",
-    "check": "npm run lint && npm run test && npm run fullcoverage"
+    "check": "npm run lint && npm run test && npm run coverage && npm run fullcoverage"
   },
   "repository": "HSSPfile/js",
   "keywords": [
@@ -34,9 +34,9 @@
   "author": "HSSP",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/HSSPfile/js/issues"
+    "url": "https://github.com/acridotheres/hssp-js/issues"
   },
-  "homepage": "https://hssp.leox.dev/",
+  "homepage": "https://github.com/acridotheres/hssp-js#README",
   "dependencies": {
     "murmurhash-js": "^1.0.0"
   },
@@ -44,27 +44,17 @@
     "@rollup/plugin-commonjs": "^26.0.1",
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.0",
-    "eslint": "^9.2.0",
-    "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-config-node": "^4.1.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-import": "^2.29.0",
-    "eslint-plugin-jsx-a11y": "^6.8.0",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-prettier": "^5.0.1",
-    "eslint-plugin-react": "^7.33.2",
-    "eslint-plugin-react-hooks": "^4.6.0",
+    "globals": "^15.9.0",
+    "lzma": "^2.3.2",
     "mocha": "^10.2.0",
     "nyc": "^17.0.0",
+    "pako": "^2.1.0",
     "path-browserify": "^1.0.1",
     "prettier": "^3.1.0",
     "rollup": "^4.9.6",
     "stream-browserify": "^3.0.0",
     "terser": "^5.27.0",
     "webpack": "^5.90.1",
-    "webpack-cli": "^5.1.4",
-
-    "lzma": "^2.3.2",
-    "pako": "^2.1.0"
+    "webpack-cli": "^5.1.4"
   }
 }
